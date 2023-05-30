@@ -1,0 +1,140 @@
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  Grid,
+  Typography,
+  makeStyles,
+} from "@material-ui/core";
+import React, { useState } from "react";
+
+import { format } from "../../../../heplers/format";
+import { getTranslation } from "../../../../heplers/translationHelper";
+import LogoFile1 from "../../../../assests/icons/favIcon.png";
+import { ReportLayout, reportStyles } from "../../../report/ReportLayout";
+
+export const AllTenantReport = React.forwardRef(({ data }, ref) => {
+  const noData = typeof data === "undefined" || typeof data.rows === "undefined";
+  const classes = reportStyles();
+
+  return (<ReportLayout ref={ref} noData={noData} title={getTranslation("List Tenants","List Tenants","List Tenants")}>
+    <table>
+      <tr>
+        <td>
+          <Typography className={classes.dateStyle} >
+            {getTranslation("Status", "Status", "Status")}:
+          </Typography>
+        </td>
+        <td>
+          <Typography className={classes.dateStyle} >{data?.filterItems?.status}</Typography>
+        </td>
+      </tr>
+    </table>
+    <table className={classes.table}>
+      <thead>
+        <tr>
+          <th align="left"
+            className={classes.titleStyles}
+          >
+            {getTranslation("Name", "Name", "Name")}
+          </th>
+          <th
+            className={classes.titleStyles}
+          >
+            {getTranslation("Appartment", "Appartment", "Appartment")}
+
+          </th>
+          <th
+            className={classes.titleStyles}
+          >
+            {getTranslation("Last Payment", "Last Payment", "Last Payment")}
+
+          </th>
+          <th
+            className={classes.titleStyles}
+            align="right"
+          >
+            {getTranslation("Phone", "Phone", "Phone")}
+
+          </th>
+          <th
+            className={classes.titleStyles}
+            align="right"
+          >
+            {getTranslation("Balance", "Balance", "Balance")}
+
+          </th>
+          
+        </tr>
+      </thead>
+      <tbody>
+        {data?.rows?.map((tenant) => {
+          return (
+            <tr>
+              <td className={classes.subtitle}>{tenant.name}</td>
+              <td className={classes.subtitle} align="center">
+                {tenant.apartmentNo}
+              </td>
+             {
+              tenant.isPaymentDoneInLastMonth == false?
+                <td
+                  className={classes.subtitle}
+                  align="center"
+                  style={{ color: 'red' }}
+                >
+                  {format('date', tenant.lastPaymentDate)}
+                </td>:
+
+                <td
+                  className={classes.subtitle}
+                  align="center"
+                  style={{ color: 'green' }}
+                >
+                  {format('date', tenant.lastPaymentDate)}
+                </td>
+              } 
+              <td className={classes.subtitle} align="right">
+                {format('number', tenant.telephone)}
+              </td>
+              <td className={classes.subtitle} align="right">
+                {format('number', tenant.accountBalance)}
+              </td>
+              
+            </tr>
+          );
+        })}
+
+        <tr style={{background: "#233044",}}>
+        <td align={"center"} style={{
+                // background: "#233044",
+                color: "#fff",
+              }}>
+
+                <Typography className={classes.titleStyles} align="left"
+                >
+                  {getTranslation(" Total ", " Totale ", " Gesamt ")}
+                </Typography>
+
+              </td>
+              <td></td><td style={{background: "#EB5C3E"}}></td>
+              <td style={{background: "#EB5C3E"}}></td>
+
+              <td align="right" style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}>
+                <Typography className={classes.titleStyles}>
+                  &euro;{" "}
+                  {format("number", data?.totalBalance)}{" "}
+                </Typography>
+              </td>
+        </tr>
+      </tbody>
+      <tfoot>
+
+      </tfoot>
+    </table>
+  </ReportLayout>
+
+  );
+});

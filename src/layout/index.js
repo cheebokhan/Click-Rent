@@ -1,0 +1,78 @@
+import React, { useEffect, useState } from "react";
+import { Box, CircularProgress } from "@material-ui/core";
+import Sidebar from "./sidebar";
+import TopBar from "./topbar";
+import Breadcrumbs from "../components/BreadCrumbs";
+import useStyles from "../assests/styles/layout/main";
+import clsx from "clsx";
+import { getLanguage } from "../actions";
+
+export default function DashboardLayout(props) {
+  const classes = useStyles();
+  const [navOpen, setNavOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [loadingTranslation, setLoadingTranslation] = useState(true)
+  useEffect(() => {
+    if (window.innerWidth < 1000) {
+      setNavOpen(false);
+      setIsMobile(true);
+    }
+    else setNavOpen(true);
+  }, []);
+
+  useEffect(()=>{
+    if(isMobile)
+    setNavOpen(false);
+  },[window.location.pathname])
+
+  useEffect(() => {
+    getUpdatedTranslation();
+  }, [])
+  const getUpdatedTranslation = () => {
+    
+    getLanguage(
+      resp => {
+        if (resp?.data) {
+          localStorage.setItem("dictionary", JSON.stringify(resp.data));
+        }
+        // alert(localStorage.getItem("lang"))
+        if(localStorage.getItem("lang")===null){
+          localStorage.setItem("lang","fr")
+          window.location.reload();
+        }else
+        setLoadingTranslation(false);
+      },
+      error => {
+
+      }
+    );
+
+  }
+  return  loadingTranslation ? <Box display= "flex"
+  alignItems= "center"
+  justifyContent= "center"
+  flexDirection= "column"> 
+  <CircularProgress
+    style={{ margin: "auto" }}
+  /></Box> : (
+    <div className={classes.root}>
+      <TopBar
+        className=""
+        navOpen={navOpen}
+        handleDrawerOpen={() => setNavOpen(true)}
+        isMobile={isMobile}
+      />
+      <Sidebar onMobileClose={() => setNavOpen(false)} openMobile={navOpen} />
+      <main
+        className={clsx(classes.content, {
+          [classes.contentShift]: navOpen,
+        })}
+      >
+        <Box mb={2} className={classes.breadcrums}>
+          <Breadcrumbs />
+        </Box>
+        {props.children}
+      </main>
+    </div>
+  );
+}

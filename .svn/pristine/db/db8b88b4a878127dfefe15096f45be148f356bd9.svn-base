@@ -1,0 +1,454 @@
+import React, { useEffect, useState } from "react";
+import {
+  Container,
+  CssBaseline,
+  Typography,
+  TextField,
+  Box,
+  Grid,
+  Select,
+  FormControl,
+  MenuItem,
+  InputLabel,
+  IconButton,
+} from "@material-ui/core";
+import { Formik } from "formik";
+import { Link, withRouter, useLocation } from "react-router-dom";
+import * as Yup from "yup";
+import { useDispatch } from "react-redux";
+import useStyles from "../../assests/styles/views/auth/login";
+import Copyright from "../../utils/copyRightUtils";
+import { TransparentLogo } from "../../components/Logo";
+import ButtonWithLoading from "../../components/ButtonWithLoading";
+import {
+  userLogin,
+  getCustomerApps,
+  Post,
+  verifyInternalAppLogin,
+} from "../../actions";
+import checkResponse from "../../heplers/responseHelper";
+import { useSnackbar } from "notistack";
+import authUtils from "../../utils/authUtils";
+import authService from "../../utils/authUtils";
+import { Post_VerifyInternalAppLogin_URL } from "../../constants/apiUrls";
+import { useParams } from "react-router";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import { getTranslation } from "../../heplers/translationHelper";
+import { ArrowBack } from "@material-ui/icons";
+
+const Login = ({ history }) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const location = useLocation();
+  const { enqueueSnackbar } = useSnackbar();
+  const [customerAppsLoading, setCustomerAppsLoading] = useState(false);
+  const params = useParams();
+  const [customerApps, setCustomerApps] = useState([]);
+  const [lastLocation, setLastLocation] = useState("");
+  const [showStep, setShowStep] = useState(false);
+  const [isLoginInfoLoaded, setIsLoginInfoLoaded] = useState(false);
+
+  useEffect(() => {
+    const token = params.token;
+    if (token) {
+      verifyInternalAppLogin(
+        { token: token },
+        (res) => {
+
+          getCustomerApps({
+            email: res.data.appUser.email,
+            appId: 1
+          },
+            (resp) => {
+
+              if (resp?.length === 0) {
+                enqueueSnackbar(
+                  getTranslation(
+                    " No customer apps exists ",
+                    " Aucune application client n'existe ",
+                    " Es sind keine Kunden-Apps vorhanden "
+                  ),
+                  {
+                    variant: "error",
+                  }
+                );
+                setCustomerAppsLoading(false);
+                // actions.setSubmitting(false);
+              } else {
+                try {
+                  if (authUtils.getCustomerId() != null && resp.findIndex(x => x.customerId == authUtils.getCustomerId()) >= 0) {
+                    res.data.customerId = authUtils.getCustomerId()
+                  }
+                  else {
+                    res.data.customerId = resp[0].customerId
+                  }
+                  authUtils.setUser(res.data.appUser);
+                  authUtils.setSession(res.data.accessToken);
+                  authUtils.setUserRefreshToken(
+                    res.data.refreshToken,
+                    res.data.refreshTokenExpire
+                  );
+                  authUtils.setCustomerId(res.data.customerId);
+                  // const org=customerApps.find(x=>x.customerId==values.customerId)
+                  authUtils.setCustomerOrganizations(resp);
+                  const selectedOrg = resp.find(x => x.customerId == res.data.customerId);
+
+                  authUtils.setIsStarter(selectedOrg.isStarter);
+
+                  history.push("/");
+                  // actions.setSubmitting(false);
+                } catch (e) {
+                  console.log("ajklshkjashdjahsklda", e)
+
+                }
+
+              }
+            },
+            (error) => {
+              setCustomerAppsLoading(false);
+              enqueueSnackbar(error.data, {
+                variant: "error",
+              });
+            }
+          )
+        },
+        (error) => {
+          setIsLoginInfoLoaded(true);
+          enqueueSnackbar(
+            getTranslation(
+              " Invalid Token ",
+              " jeton invalide ",
+              " Ung�ltiges Token "
+            ),
+            { variant: "error" }
+          );
+        }
+      );
+    }
+    else if (authService.isAuthenticated() || authService.isRefreshAuthenticated()) {
+      history.push("/");
+    } else {
+      setIsLoginInfoLoaded(true);
+    }
+  }, []);
+  let schema = Yup.string().email("Invalid");
+  return (
+    <Container component="main" maxWidth="xs">
+      <CssBaseline />
+      {isLoginInfoLoaded ? (
+        <div className={classes.paper}>
+
+          <div className={classes.logo}>
+            <TransparentLogo />
+          </div>
+
+          <Typography component="h1" variant="h2" color="secondary">
+            {getTranslation("Login", "Connexion", "Anmeldung")}
+          </Typography>
+          {showStep == true ?
+            <div style={{ width: "100%" }}>
+              <Box display="flex" justifyContent="flex-start">
+                <IconButton onClick={() => setShowStep(false)}>
+                  <ArrowBack />
+                </IconButton>
+              </Box>
+            </div>
+            : null}
+          <Formik
+            initialValues={{
+              email: "",
+              password: "",
+              organizationName: "",
+              appId: 1,
+            }}
+            validationSchema={Yup.object().shape({
+              email: Yup.string().email(
+                getTranslation(
+                  " Please enter a valid Email ",
+                  " Veuillez saisir un e-mail valide ",
+                  " Bitte geben Sie eine g�ltige Email-Adresse ein "
+                )
+              ),
+              password: Yup.string().required(
+                getTranslation(
+                  " Password is required ",
+                  " Mot de passe requis ",
+                  " Passwort wird ben�tigt "
+                )
+              ),
+            })}
+            onSubmit={(values, actions) => {
+              actions.setSubmitting(true);
+              // if(values.customerId==null || values.customerId==''){
+              //   values.customerId=customerApps[0].customerId
+              // }
+              getCustomerApps(values,
+                (resp) => {
+
+                  if (resp?.length === 0) {
+                    enqueueSnackbar(
+                      getTranslation(
+                        " No customer apps exists ",
+                        " Aucune application client n'existe ",
+                        " Es sind keine Kunden-Apps vorhanden "
+                      ),
+                      {
+                        variant: "error",
+                      }
+                    );
+                    setCustomerAppsLoading(false);
+                    actions.setSubmitting(false);
+                  } else {
+
+                    // setCustomerApps(resp);
+                    // setCustomerAppsLoading(false);
+                    // setShowStep(true);
+                    try {
+                      if (authUtils.getCustomerId() != null && resp.findIndex(x => x.customerId == authUtils.getCustomerId()) >= 0) {
+                        values.customerId = authUtils.getCustomerId()
+                      }
+                      else {
+                        values.customerId = resp[0].customerId
+                      }
+                      dispatch(userLogin(values)).then((res) => {
+                        const errors = checkResponse(res);
+                        if (!errors) {
+                          authUtils.setUser(res.data.appUser);
+                          authUtils.setSession(res.data.accessToken);
+                          authUtils.setUserRefreshToken(
+                            res.data.refreshToken,
+                            res.data.refreshTokenExpire
+                          );
+                          authUtils.setCustomerId(values.customerId);
+                          // const org=customerApps.find(x=>x.customerId==values.customerId)
+                          authUtils.setCustomerOrganizations(resp);
+                          const selectedOrg = resp.find(x => x.customerId == values.customerId);
+
+                          authUtils.setIsStarter(selectedOrg.isStarter);
+
+                          history.push("/");
+                          actions.setSubmitting(false);
+                        } else {
+                          actions.setSubmitting(false);
+                          errors.forEach((error) => {
+                            enqueueSnackbar(error.message, {
+                              variant: "error",
+                            });
+                          });
+                        }
+                      });
+                    } catch (e) {
+                      console.log("ajklshkjashdjahsklda", e)
+
+                    }
+
+                  }
+                },
+                (error) => {
+                  setCustomerAppsLoading(false);
+                  enqueueSnackbar(error.data, {
+                    variant: "error",
+                  });
+                }
+              )
+
+            }}
+          >
+            {({
+              values,
+              errors,
+              touched,
+              handleChange,
+              handleSubmit,
+              validateForm,
+              setFieldValue,
+              isSubmitting,
+            }) => (
+              <form className={classes.form}>
+                <>
+                  <TextField
+                    variant="outlined"
+                    margin="normal"
+                    required
+                    fullWidth
+                    id="email"
+                    label={getTranslation(
+                      "Email Address",
+                      "Adresse e-mail",
+                      "E-Mail-Addresse"
+                    )}
+                    name="email"
+                    autoComplete="email"
+                    autoFocus
+                    size="small"
+                    value={values.email}
+                    onChange={handleChange}
+                    error={touched.email && Boolean(errors.email)}
+                    helperText={touched.email && errors.email}
+                  />
+                  {/* <a href="https://appmanager.impact-soft.com/market/1">Wants to have more organizations?</a> */}
+                  {/* <Box display="flex" justifyContent="flex-end">
+                      <ButtonWithLoading
+                        loading={customerAppsLoading}
+                        title={getTranslation("Next", "Suivant", "N�chste")}
+                        variant="contained"
+                        color="primary"
+                        onClick={() => {
+                          validateForm(values).then((verrors) => {
+                            if (verrors.email) {
+                              enqueueSnackbar(
+                                getTranslation(
+                                  " Provide a valid email ",
+                                  " Fournir un email valide ",
+                                  " Geben Sie eine g�ltige E-Mail-Adresse an "
+                                ),
+                                {
+                                  variant: "error",
+                                }
+                              );
+                            } else {
+                              const payload = {
+                                email: values.email,
+                                appId: 1,
+                              };
+                              //loadCustomerApps(payload);
+                              getCustomerApps(
+                                payload,
+                                (resp) => {
+                                  if (resp?.length === 0) {
+                                    enqueueSnackbar(
+                                      getTranslation(
+                                        " No customer apps exists ",
+                                        " Aucune application client n'existe ",
+                                        " Es sind keine Kunden-Apps vorhanden "
+                                      ),
+                                      {
+                                        variant: "error",
+                                      }
+                                    );
+                                    setCustomerAppsLoading(false);
+                                  } else {
+                                    setCustomerApps(resp);
+                                    setCustomerAppsLoading(false);
+                                    setShowStep(true);
+                                  }
+                                },
+                                (error) => {
+                                  setCustomerAppsLoading(false);
+                                  enqueueSnackbar(error.data, {
+                                    variant: "error",
+                                  });
+                                }
+                              );
+                            }
+                          });
+                        }}
+                      />
+                    </Box> */}
+                  {/* <FormControl fullWidth variant="outlined">
+                      <InputLabel id="demo-simple-select-label">
+                        {getTranslation(
+                          " Select organization ",
+                          " S�lectionnez l'organisation ",
+                          " Organisation ausw�hlen "
+                        )}
+                      </InputLabel>
+                      <Select
+                        style={{
+                          height: "50px",
+                        }}
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        label={getTranslation(
+                          "Select Organization",
+                          "S�lectionnez l'organisation",
+                          "W�hlen Sie Organisation aus"
+                        )}
+                        onChange={(e) => {
+                          setFieldValue("customerId", e.target.value);
+                        }}
+                        defaultValue={customerApps[0]?.customerId}
+                        disabled={customerApps.length<=1}
+                      >
+                        {customerApps?.map((app) => (
+                          <MenuItem value={app.customerId}>
+                            {app.organizationName}
+                          </MenuItem>
+                        ))}
+                      </Select> */}
+                  {/* <a href="https://appmanager.impact-soft.com/market/1">Wants to have more organizations?</a> */}
+
+                  {/* </FormControl> */}
+                  <TextField
+                    variant="outlined"
+                    margin="normal"
+                    required
+                    fullWidth
+                    size="small"
+                    name="password"
+                    label={getTranslation(
+                      "Password",
+                      "Mot de passe",
+                      "Kennwort"
+                    )}
+                    type="password"
+                    id="password"
+                    value={values.password}
+                    onChange={handleChange}
+                    error={touched.password && Boolean(errors.password)}
+                    helperText={touched.password && errors.password}
+                  />
+
+                  <ButtonWithLoading
+                    type="submit"
+                    title={getTranslation("Login", "Connexion", "Anmeldung")}
+                    fullWidth
+                    variant="contained"
+                    loading={isSubmitting}
+                    onClick={handleSubmit}
+                    className={classes.submit}
+                  />
+
+                  <Grid container>
+                    <Grid item xs>
+                      <Link
+                        to="/forget_password"
+                        color="secondary"
+                        variant="body1"
+                      >
+                        {/* <Typography color="textSecondary">
+                            {getTranslation(
+                              "Forget Password",
+                              "Mot de passe oubli�",
+                              "Passwort vergessen"
+                            )}
+                          </Typography> */}
+                      </Link>
+                    </Grid>
+                  </Grid>
+                  <Box mt={3}>
+                    <Copyright />
+                  </Box>
+                </>
+
+              </form>
+            )}
+          </Formik>
+        </div>
+      ) : (
+        <Grid
+          container
+          spacing={0}
+          direction="column"
+          alignItems="center"
+          justify="center"
+          style={{ minHeight: "100vh" }}
+        >
+          <CircularProgress />
+        </Grid>
+      )}
+    </Container>
+  );
+};
+
+export default withRouter(Login);

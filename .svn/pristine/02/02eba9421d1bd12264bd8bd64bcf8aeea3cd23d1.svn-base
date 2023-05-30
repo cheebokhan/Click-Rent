@@ -1,0 +1,183 @@
+import React from "react";
+import { Box, Card, CardHeader, Paper, TextField } from "@material-ui/core";
+import Table from "../../../components/table";
+import { useState, useEffect } from "react";
+import DeleteDialog from "../../../components/DeleteDialog";
+import { useDispatch, useSelector } from "react-redux";
+import { useHistory } from "react-router-dom";
+import { useSnackbar } from "notistack";
+
+import { Post, Get } from "../../../actions/apiActions";
+import { BankSettings } from "./addBankSettings";
+import {
+  Get_AllBanksWithPagination_URL,
+  Post_DeleteBank_URL,
+} from "../../../constants/apiUrls";
+import AlertDialog from "../../../components/DeleteDialog";
+import authService from "../../../utils/authUtils";
+import { Upgrade } from "../../common/Upgrade";
+import { getTranslation } from "../../../heplers/translationHelper";
+//name, address, zipcode, Town
+const columns = [
+  {
+    id: "iban",
+    numeric: true,
+    disablePadding: true,
+    label: "IBAN",
+  },
+  {
+    id: "securityKey",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation(
+      "Security Key",
+      "Clef de sécurité",
+      "Sicherheitsschlüssel"
+    ),
+  },
+  {
+    id: "publicKey",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation(
+      "Public Key",
+      "Clé publique",
+      "Öffentlicher Schlüssel"
+    ),
+  },
+  {
+    id: "shortDescription",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation("Description", "La description", "Beschreibung"),
+  },
+  {
+    id: "actions",
+    numeric: true,
+    disablePadding: true,
+    label:  getTranslation("Actions", "Actions", "Aktions"),
+    align: "right",
+  },
+];
+
+export const BankSettingList = ({ loading, refreshDues, onEdit }) => {
+  const [searchString, setSearchString] = useState("");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(
+    localStorage.getItem("sizeBanks")
+  );
+  const [editBank, setEditBank] = useState();
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [deletedRow, setDeletedRow] = useState();
+  const [deleting, setDeleting] = useState(false);
+
+  const [multipleBanks, setMultipleBanks] = useState([]);
+  const history = useHistory();
+
+  const [filterItems, setFilterItems] = useState({
+    //status:transactionStatus,
+    searchString: searchString,
+    pageNumber: 0,
+    pageSize: 10,
+  });
+  const { enqueueSnackbar } = useSnackbar();
+
+  useEffect(() => {
+    loadBanksSettings(filterItems);
+  }, [filterItems]);
+
+  const loadBanksSettings = () => {
+    Get(
+      {},
+      Get_AllBanksWithPagination_URL,
+      null,
+      (resp) => {
+        setMultipleBanks(resp?.data);
+      },
+      (error) => {}
+    );
+  };
+
+  //handlers
+  const handleChangePage = (newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    localStorage.setItem("sizeBanks", parseInt(event.target.value));
+    setRowsPerPage(localStorage.getItem("sizeBanks"));
+    setPage(0);
+  };
+
+  //handleSearchdue
+  const handleSearchDue = (searchString) => {
+    setSearchString(searchString);
+  };
+
+  const handleOpenDeleteDialog = (row) => {
+    setDeletedRow(row);
+    setOpenDeleteDialog(true);
+  };
+  const handleDelete = () => {
+    setDeleting(true);
+    Post(
+      { id: deletedRow.id },
+      Post_DeleteBank_URL,
+      null,
+      (resp) => {
+        //onDelete(deletedRow);
+        enqueueSnackbar("Bank is deleted.", { variant: "success" });
+        loadBanksSettings();
+        setDeleting(false);
+        setOpenDeleteDialog(false);
+      },
+      (error) => {
+        enqueueSnackbar("System cannot delete a bank having transactions.", { variant: "error" });
+        setOpenDeleteDialog(false);
+        setDeleting(false);
+      }
+    );
+  };
+
+  const handleEditBank = (row) => {
+    setEditBank(row);
+  };
+  return (
+    authService.getIsStarter()==true?<Upgrade/>:
+    <>
+      <BankSettings updateBank={editBank} refresh={()=>{
+        loadBanksSettings(filterItems)
+        setEditBank(null);
+      }} 
+      />
+      <br />
+      <Card>
+        <CardHeader title={getTranslation("Bank", "Banque", "Bank")} />
+        <Table
+          loading={loading}
+          dense
+          colums={columns}
+          sortBy="name"
+          rows={multipleBanks?.data}
+          count={multipleBanks?.totalCount}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          handleChangePage={handleChangePage}
+          handleChangeRowsPerPage={handleChangeRowsPerPage}
+          viewDelete
+          onDelete={(row) => handleOpenDeleteDialog(row)}
+          viewSearch
+          onSearch={(searchString) => handleSearchDue(searchString)}
+          viewEdit
+          onEdit={(row) => handleEditBank(row)}
+        />
+      </Card>
+      <AlertDialog
+        open={openDeleteDialog}
+        deleting={deleting}
+        onClose={() => setOpenDeleteDialog(false)}
+        onSubmit={handleDelete}
+      />
+    </>
+  );
+};

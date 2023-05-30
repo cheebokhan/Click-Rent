@@ -1,0 +1,705 @@
+import React, { useEffect, useState } from "react";
+import Table from "../../components/table";
+import { Get, Post } from "../../actions/apiActions";
+import { useSnackbar } from "notistack";
+import { useHistory } from "react-router-dom";
+import { getTranslation } from "../../heplers/translationHelper";
+import { useLocation } from "react-router";
+import {
+  Post_AddFundToTenant_URL,
+  Post_AddFundToSupplier_URL,
+  Get_AllBankTransactionsWithPagination_URL,
+  Get_ClearBankTransaction_URL,
+  Get_BankTransaction_URL,
+  Get_AllBanks_URL,
+  Post_UpdateBankTransaction_URL,
+} from "../../constants/apiUrls";
+import {
+  FundsToSupplier,
+  FundsToTenant,
+} from "../../components/ButttonsWithIcons";
+import EditIcon from "@material-ui/icons/Edit";
+import { AddFundsToSupplierDialog } from "./components/fundstosupplier";
+import { AddFundsToTenantDialog } from "./components/fundstotenant";
+import { useDispatch } from "react-redux";
+import {
+  Box,
+  Card,
+  CardContent,
+  CardHeader,
+  Grid,
+  TextField,
+  Typography,
+} from "@material-ui/core";
+import {
+  Autocomplete,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@material-ui/lab";
+import _ from "lodash";
+import { BankTransactionEdit } from "./index";
+import CloseIcon from "@material-ui/icons/Close";
+import authUtils from "../../utils/authUtils";
+import { Upgrade } from "../common/Upgrade";
+import { Helmet } from "react-helmet";
+
+//name, address, zipcode, Town
+const columns = [
+  {
+    id: "actions",
+    label: getTranslation("Action", "Action", "Action"),
+    align: "left",
+  },
+  {
+    id: "valueDate",
+    numeric: false,
+    disablePadding: true,
+    label: getTranslation("Date", "Date", "Date"),
+    format: "date",
+  },
+  {
+    id: "counterpartName",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation(
+      "Counter Part Name",
+      "Nom contre-partie",
+      "Name Gegenpartei"
+    ),
+  },
+  {
+    id: "amount",
+    align: "right",
+    label: getTranslation("Amount", "Montant", "Betrag"),
+    format: "number",
+  },
+];
+
+const matchedColumns = [
+  {
+    id: "actions",
+    label: getTranslation("Action", "Action", "Action"),
+    align: "left",
+  },
+  {
+    id: "valueDate",
+    numeric: false,
+    disablePadding: true,
+    label: getTranslation("Date", "Date", "Date"),
+    format: "date"
+  },
+  {
+    id: "counterpartName",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation(
+      "Counter Part Name",
+      "Nom contre-partie",
+      "Name Gegenpartei"
+    ),
+  },
+  {
+    id: "matchedWithTenant",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation("Tenant", "Locataire", "Mieter"),
+  },
+  {
+    id: "matchedWithSupplier",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation("Supplier", "Le fournisseur", "Anbieter"),
+  },
+  {
+    id: "amount",
+    align: "right",
+    label: getTranslation("Amount", "Montant", "Betrag"),
+    format: "number",
+  },
+];
+
+const Bank = () => {
+
+  // transaction status is default set to unmatched (2). Other filters (0 = All) and (1 = Macthed)
+  const [transactionStatus, setTransactionStatus] = useState(0);
+  const [transferDirection, setTransferDirection] = useState(0);
+  const [searchString, setSearchString] = useState("");
+  const [page, setPage] = useState(0);
+  let sizeBank=localStorage.getItem("sizeBank");
+  if(sizeBank==null)
+    {
+      localStorage.setItem("sizeBank",10)
+      sizeBank=10
+    }
+  const [rowsPerPage, setRowsPerPage] = useState(sizeBank);
+  const [bank, setBank] = useState();
+  const history = useHistory();
+  const { enqueueSnackbar } = useSnackbar();
+  const [bankloading, setBankLoading] = useState(false);
+  const [bankList, setBankList] = useState();
+  const [AddToTenantDialogOpen, setAddToTenantDialogOpen] = useState(false);
+  const [AddToSupplierDialogOpen, setAddToSupplierDialogOpen] = useState(false);
+  const [editTransactionDialogOpen, setEditTransactionDialogOpen] = useState(false);
+  const [tenantSubmiting, setTenantSubmiting] = useState(false);
+  const [supplierSubmiting, setSupplierSubmiting] = useState(false);
+  const [sortDirection, setSortDirection] = useState(1);
+  const [sort, setSort] = useState("valueDate");
+  const [bankBalance, setBankBalance] = useState(0);
+  const [filterBank, setFilterBank] = useState([]);
+  const [selectedBank, setSelectedBBank] = useState({ iban: "All" });
+  const [bankloaded, setBankLoaded] = useState(false);
+  const location = useLocation();
+  const dispatch = useDispatch();
+  const dashboardIbanFilter = location?.state?.filter;
+  const [balanceCard, setBalanceCard] = useState(false);
+  const [editSupplierFunds, setEditSupplierFunds] = useState(null);
+  const [editTenantFunds, setEditTenantFunds] = useState(null);
+  const [supplierData, setSupplierData] = useState(null);
+  const [bankDetails,setBankDetails]=useState();
+
+
+  useEffect(() => {
+    Get(
+      {},
+      Get_AllBanks_URL,
+      null,
+      (resp) => {
+        setBankLoaded(true);
+        setBankDetails(resp?.data[0]);
+        setFilterBank([...resp?.data, { iban: getTranslation("All","All","All") }]);
+        if (dashboardIbanFilter) {
+          setSelectedBBank(
+            resp?.data.find((x) => x.iban === dashboardIbanFilter)
+          );
+        } else {
+          setSelectedBBank({ iban: getTranslation("All","All","All") });
+        }
+      },
+      (error) => {
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (bankloaded) loadBanks();
+  }, [
+    page,
+    searchString,
+    rowsPerPage,
+    transferDirection,
+    transactionStatus,
+    sort,
+    sortDirection,
+    selectedBank,
+  ]);
+
+  useEffect(() => {
+    dispatch({ type: "Clear_All_BreadCrumb" });
+    dispatch({
+      type: "Add_BreadCrumb",
+      payload: {
+        title: getTranslation(" Bank ", " Banque ", " Bank "),
+        url: "/bank",
+      },
+    });
+  }, []);
+
+  const loadBanks = async () => {
+    setBankLoading(true);
+    console.log("jkalhdjkasdhlasjkdh",{
+      bankId: selectedBank?.id,
+      sort: sort,
+      sortDirection: sortDirection,
+      transferDirection: transferDirection,
+      status: transactionStatus,
+      searchString: searchString,
+      pageNumber: page,
+      pageSize: rowsPerPage,
+    })
+    Get(
+      {
+        bankId: selectedBank?.id,
+        sort: sort,
+        sortDirection: sortDirection,
+        transferDirection: transferDirection,
+        status: transactionStatus,
+        searchString: searchString,
+        pageNumber: page,
+        pageSize: rowsPerPage,
+      },
+      Get_AllBankTransactionsWithPagination_URL,
+      history,
+      (resp) => { 
+        setBankLoading(false);
+        setBankList(resp?.data);
+      },
+      (error) => {
+        setBankLoading(false);
+        enqueueSnackbar(
+          getTranslation(
+            " Internal server error ",
+            " Erreur interne du serveur ",
+            " Interner Serverfehler "
+          ),
+          {
+            variant: "error",
+          }
+        );
+      }
+    );
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    localStorage.setItem("sizeBank", event.target.value);
+    setRowsPerPage(event.target.value);
+    setPage(0);
+  };
+
+  //handleSearchdue
+  const handleSearchBank = (searchString) => {
+    setSearchString(searchString);
+  };
+
+  const handleOnSubmitSupplier = (values, actions) => {
+    setSupplierSubmiting(true);
+    values.BankTransactionId = bank.id;
+    Post(
+      values,
+      editSupplierFunds? Post_UpdateBankTransaction_URL: Post_AddFundToSupplier_URL,
+      history,
+      (resp) => {
+        setAddToSupplierDialogOpen(false);
+        enqueueSnackbar(
+          getTranslation(
+            " Funds added to the supplier ",
+            " Fonds ajoutés au fournisseur ",
+            " Dem Lieferanten hinzugefügte Mittel "
+          ),
+          { variant: "success" }
+        );
+        setSupplierSubmiting(false);
+        loadBanks({
+          sort: sort,
+          sortDirection: sortDirection,
+          transferDirection: transferDirection,
+          status: transactionStatus,
+          searchString: searchString,
+          pageNumber: page,
+          pageSize: rowsPerPage,
+        });
+      },
+      (error) => {
+        enqueueSnackbar(
+          getTranslation(
+            " The system was not able to handle your request. Please try again ",
+            " Le système n'a pas été en mesure de traiter votre demande. Veuillez réessayer ",
+            " Das System konnte Ihre Anfrage nicht bearbeiten. Bitte versuche es erneut "
+          ),
+          { variant: "error" }
+        );
+        actions.setSubmitting(false);
+      }
+    );
+  };
+  const handleOnSubmitTenant = (values, actions) => {
+    values.bankTransactionId = bank.id;
+    Post(
+      values,
+      editTenantFunds?Post_UpdateBankTransaction_URL: Post_AddFundToTenant_URL,
+      history,
+      (resp) => {
+        setAddToSupplierDialogOpen(false);
+        enqueueSnackbar(
+          getTranslation(
+            " Funds added to tenant ",
+            " Fonds ajoutés au locataire ",
+            " Dem Mieter hinzugefügte Mittel "
+          ),
+          { variant: "success" }
+        );
+        setAddToTenantDialogOpen(false);
+        loadBanks({
+          sort: sort,
+          sortDirection: sortDirection,
+          transferDirection: transferDirection,
+          status: transactionStatus,
+          searchString: searchString,
+          pageNumber: page,
+          pageSize: rowsPerPage,
+        });
+      },
+      (error) => {
+        enqueueSnackbar(
+          getTranslation(
+            " The system was not able to handle your request. Please try again ",
+            " Le système n'a pas été en mesure de traiter votre demande. Veuillez réessayer ",
+            " Das System konnte Ihre Anfrage nicht bearbeiten. Bitte versuche es erneut "
+          ),
+          { variant: "error" }
+        );
+      }
+    );
+  };
+  const onClearBankTransaction = (bankTransactionId) => {
+    Get(
+      { bankTransactionId: bankTransactionId },
+      Get_ClearBankTransaction_URL,
+      history,
+      (resp) => {
+        enqueueSnackbar(
+          getTranslation(
+            " Bank Transaction Cleared ",
+            " Fonds ajoutés au locataire ",
+            " Dem Mieter hinzugefügte Mittel "
+          ),
+          { variant: "success" }
+        );
+        console.log("kakdja", resp);
+        loadBanks({
+          sort: sort,
+          sortDirection: sortDirection,
+          transferDirection: transferDirection,
+          status: transactionStatus,
+          searchString: searchString,
+          pageNumber: page,
+          pageSize: rowsPerPage,
+        });
+      },
+      (error) => {
+        enqueueSnackbar(error.data, { variant: "error" });
+      }
+    );
+  };
+
+  const onBankTransactionSelected = (bankTransactionId) => {
+    Get(
+      {
+        bankTransactionId: bankTransactionId,
+      },
+      Get_BankTransaction_URL,
+      history,
+      (resp) => {
+        if (resp.data?.supplierCategoryId === null) {
+          setEditTenantFunds(resp.data);
+          setAddToTenantDialogOpen(true);
+        } else {
+          setEditSupplierFunds(resp.data);
+          setAddToSupplierDialogOpen(true);
+        }
+      },
+      (error) => {
+        enqueueSnackbar(error.data, { variant: "error" });
+      }
+    );
+  };
+  const onSupplierSelected = (row, editSupFunds) => {
+    setBank(row);
+    setAddToSupplierDialogOpen(true);
+  };
+  const onTenentSelected = (row) => {
+    setBank(row);
+    setAddToTenantDialogOpen(true);
+  };
+  
+  return authUtils.getIsStarter()==true ? <Upgrade/> : (
+  <>
+    <Helmet>
+      <title>{getTranslation("Bank", "Bank", "Bank")}</title>
+    </Helmet>
+
+    <Card>
+      <CardHeader title={getTranslation("Bank", "Banque", "Bank")} />
+      <CardContent>
+        {/* Removed Box as on small screens we need these toggleButtons one per line */}
+        <Grid container style={{marginBottom:"50px"}}>
+          <Grid item sm={12} md={8} lg={8}>
+            
+          </Grid>
+          <Grid item xs={12} sm={12} md={4} lg={4}>
+          <Autocomplete
+            width="200px"
+            options={filterBank}
+            value={selectedBank}
+            getOptionLabel={(option) => option.iban =="CR-All" || option.iban =="All"  || option.iban=="Tout" || option.iban=="Alle" ? option.iban : option.iban + " " + option.shortDescription}
+            size="small"
+            placeholder="Filter"
+            onChange={(e, filter) => {
+              console.log("mhkjskjbgsdfg", dashboardIbanFilter);
+              if (filter) {
+                if (filter?.iban !== "All") {
+                  // loadBanksAccordingToId(filter?.id);
+                  setSelectedBBank(filter);
+                  setBankBalance(filter?.accountBalance);
+                  setBalanceCard(true);
+                } else {
+                  setSelectedBBank(filter);
+                  setBalanceCard(false);
+                  // loadBanks();
+                }
+              } else {
+                setSelectedBBank({ iban: "All" });
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={getTranslation("Filter", "Filtre", "Filter")}
+                variant="outlined"
+                // error={
+                //   touch ed.apartmentId && Boolean(errors.apartmentId)
+                // }
+              />
+            )}
+          />
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={12} md={12} lg={12}>
+            <Card>
+              <CardHeader
+                title={getTranslation(
+                  "Bank Information",
+                  "Information bancaire",
+                  "Bank Informationen"
+                )}
+              />
+              <CardContent >
+                <Grid container>
+                <Grid sm={3} lg={3} md={3}>
+                <Typography variant="h4">{getTranslation("Bank","Bank","Bank")} : {bankDetails?.shortDescription}</Typography>
+                </Grid>
+                <Grid sm={4} lg={4} md={4}>
+                <Typography variant="h4">{getTranslation("IBAN","IBAN","IBAN")}: {bankDetails?.iban}</Typography>
+                </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+          {balanceCard == true ? (
+            <Grid item xs={12} sm={12} md={4} lg={4}>
+              <Card>
+                <CardHeader
+                  title={getTranslation(
+                    "Bank Balance",
+                    "Solde bancaire",
+                    "Kontostand"
+                  )}
+                />
+                <CardContent>
+                  <Typography variant="h4" align="center">
+                    {selectedBank?.iban === "All"
+                      ? _.sumBy(filterBank, (bank) => bank.accountBalance)
+                      : selectedBank?.accountBalance}{" "}
+                    €
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ) : (
+            ""
+          )}
+        </Grid>
+        <br />
+        <br />
+        <Grid container>
+          <Grid
+            item
+            xs={12}
+            sm={12}
+            md={12}
+            lg={2}
+            style={{ display: "flex", alignItems: "flex-end" }}
+          ></Grid>
+            <Grid item xs={8} sm={8} md={7} lg={5}>
+            <ToggleButtonGroup
+              size="small"
+              id="transactionStatus"
+              defaultChecked={transactionStatus}
+              value={transactionStatus}
+              exclusive
+              onChange={(event, status) => {
+                if (status !== null) {
+                  setTransactionStatus(status);
+                }
+               
+              }}
+              style={{ height: "50px" ,width:"400px"}}
+            >
+              <ToggleButton value={0} aria-label="left aligned">
+                <Typography >
+                  {getTranslation(" All ", " Toute ", " Alle ")}
+                </Typography>
+              </ToggleButton>
+              <ToggleButton value={1} aria-label="left aligned">
+                <Typography>
+                  {getTranslation(" Matched ", " Apparié ", " Abgestimmt ")}
+                </Typography>
+              </ToggleButton>
+              <ToggleButton value={2} aria-label="centered">
+                <Typography>
+                  {" "}
+                  {getTranslation(
+                    " Not Matched ",
+                    " Pas adapté ",
+                    " Nicht passend "
+                  )}
+                </Typography>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Grid>
+
+          <Grid style={{margin:"1rem"}}></Grid>
+          <Grid item xs={8} sm={8} md={4} lg={3} style={{height:"30px"}}>
+            <ToggleButtonGroup
+              id="transferDirection"
+              size="small"
+              value={transferDirection}
+              defaultChecked={transferDirection}
+              exclusive
+              onChange={(event, status) => {
+                if (status !== null) {
+                  setTransferDirection(status);
+                }
+              }}
+              style={{ height: "50px" ,width:"400px"}}
+
+            >
+              <ToggleButton value={0} aria-label="left aligned">
+                <Typography>
+                  {getTranslation(" All ", " Toute ", " Alle ")}
+                </Typography>
+              </ToggleButton>
+              <ToggleButton value={1} aria-label="left aligned">
+                <Typography>
+                  {getTranslation(" Income ", " Revenu ", " Einkommen ")}
+                </Typography>
+              </ToggleButton>
+              <ToggleButton value={2} aria-label="centered">
+                <Typography>
+                  {getTranslation(" Expense ", " Frais ", " Aufwand ")}
+                </Typography>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Grid>
+        </Grid>
+        <br />
+        <br />
+        <Table
+          dense
+          loading={bankloading}
+          colums={transactionStatus==1?matchedColumns : columns}
+          sortBy="valueDate"
+          sortDirection="desc"
+          onSorting={(property, direction) => {
+            setSort(property);
+            setSortDirection(direction === "asc" ? 0 : 1);
+          }}
+          rows={bankList?.data}
+          count={bankList?.totalCount}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          handleChangePage={handleChangePage}
+          handleChangeRowsPerPage={handleChangeRowsPerPage}
+          viewSearch
+          onSearch={(searchString) => handleSearchBank(searchString)}
+          actions={[
+            {
+              component: (bankRow) =>
+                bankRow.isProcessed ? null : (
+                  <FundsToTenant
+                    onClick={() => {
+                      onTenentSelected(bankRow);
+                    }}
+                  />
+                ),
+            },
+            {
+              component: (bankRow) =>
+                bankRow.isProcessed ? null : (
+                  <FundsToSupplier
+                    onClick={() => {
+                      onSupplierSelected(bankRow);
+                    }}
+                  />
+                ),
+            },
+            {
+              component: (bankRow) =>
+                bankRow.isProcessed ? (
+                  <CloseIcon
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      onClearBankTransaction(bankRow.id);
+                    }}
+                  />
+                ) : null,
+            },
+            {
+              component: (bankRow) =>
+                bankRow.isProcessed ? (
+                  <EditIcon
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      setBank(bankRow);
+                      onBankTransactionSelected(bankRow.id);
+                    }}
+                  />
+                ) : null,
+            },
+          ]}
+        />
+        
+        <AddFundsToTenantDialog
+          counterpartName={
+            bank?.counterpartName === null
+              ? bank?.remittanceInformation
+              : bank?.counterpartName
+          }
+          remittanceinformation={bank?.remittanceInformation}
+          amount={bank?.amount}
+          isOpen={AddToTenantDialogOpen}
+          tenantDetails={supplierData}
+          onClose={() => {
+            setAddToTenantDialogOpen(false);
+            setBank(null);
+            setEditTenantFunds(null);
+          }}
+          onSubmit={handleOnSubmitTenant}
+          editTenFunds={editTenantFunds}
+          enableEdit={editTenantFunds !== null}
+        />
+        <AddFundsToSupplierDialog
+          counterpartName={
+            bank?.counterpartName === null
+              ? bank?.remittanceInformation
+              : bank?.counterpartName
+          }
+          remittanceinformation={bank?.remittanceInformation}
+          amount={bank?.amount}
+          supplierDetails={supplierData}
+          isOpen={AddToSupplierDialogOpen}
+          onClose={() => {
+            setAddToSupplierDialogOpen(false);
+            setBank(null);
+            setEditSupplierFunds(null);
+          }}
+          onSubmit={handleOnSubmitSupplier}
+          editSupFunds={editSupplierFunds}
+          enableEdit={editSupplierFunds !== null}
+        />
+        {/* <BankTransactionEdit
+          isOpen={editTransactionDialogOpen}
+          onClose={() => setEditTransactionDialogOpen(false)}
+          // onSubmit={ }
+        /> */}
+      </CardContent>
+    </Card>
+    </>
+  );
+};
+export default Bank;

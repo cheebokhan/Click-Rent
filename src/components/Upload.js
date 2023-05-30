@@ -1,0 +1,430 @@
+import {
+  Grid,
+  IconButton,
+  Button,
+  Box,
+  Typography,
+  CircularProgress,
+} from "@material-ui/core";
+import AddIcon from "@material-ui/icons/Add";
+import Add from "@material-ui/icons/Add";
+import { UploadIcon,IconAdd } from "./icons";
+import LinearProgress from "@material-ui/core/LinearProgress";
+import { useEffect, useRef, useState } from "react";
+import DoneIcon from "@material-ui/icons/Done";
+import { AddIcCallOutlined, Close, PlusOneOutlined } from "@material-ui/icons";
+import { DeleteFile, DownloadFile, Get, GetFile, GetFileInfo, Upload } from "../actions";
+import { Get_File_URL, Post_FileUpload_URL } from "../constants/apiUrls";
+import Dropzone from "react-dropzone";
+import FolderImage from "../assests/folder_Icons/folder.png";
+import PropTypes from "prop-types";
+import ButtonWithLoading from "./ButtonWithLoading";
+import {
+  DeleteButton,
+  DownloadButton,
+  TryAgainButton,
+} from "./ButttonsWithIcons";
+import { getTranslation } from "../heplers/translationHelper";
+import docxImage from "../assests/folder_Icons/doc.png";
+import pdfImage from "../assests/folder_Icons/pdf-icon.png";
+
+const UploadDropZone = ({ onAccepted, onRejected, multiple }) => {
+  const getColor=(isDragReject, isDragAccept)=> isDragReject ? "#FF603E" : isDragAccept ? "#a5a5a5" : "#007fff";
+
+  return (
+    <Dropzone
+      onDrop={(acceptedFiles, rejectedFiles) => {
+        if (acceptedFiles.length > 0) onAccepted(acceptedFiles);
+        if (rejectedFiles.length > 0) onRejected(rejectedFiles);
+      }}
+      multiple={multiple}
+    >
+      {({ getRootProps, getInputProps, isDragReject, isDragAccept }) => (<>
+       { multiple ?
+        <Box
+          {...getRootProps()}
+          borderColor={getColor(isDragReject,isDragAccept)}
+          border="2px dashed "
+          width="100%"
+          minWidth="500px"
+          padding="30px"
+          borderRadius="10px"
+        >
+          <input {...getInputProps()} />
+          <Box justifyContent={"center"} alignItems={"center"} display="flex">
+            <img src={FolderImage} style={{ width: "100px" }} />
+          </Box>
+          <Box justifyContent={"center"} alignItems={"center"} display="flex">
+            <p>Drag & Drop Files Here</p>
+          </Box>
+        </Box>
+        :
+        <Box
+        {...getRootProps()}
+        
+        border="2px solid "
+        width="180px"
+        height="165px"
+        borderRadius="10px"
+        padding="26px,20px"
+        justifyContent={"center"} alignItems={"center"} display="flex"
+      >
+        <input {...getInputProps()} />
+        <Box borderColor={getColor(isDragReject,isDragAccept)} justifyContent={"center"} alignItems={"center"} display="flex" borderRadius="10px" border="2px dashed #007fff" width="140px"
+        height="125px">
+          <Typography style={{fontSize:"80px", 
+          color:getColor(isDragReject,isDragAccept)
+        }}>+</Typography>
+        </Box>
+      </Box>
+}
+      </>)}
+    </Dropzone>
+  );
+  // const fileSelectionRef = useRef();
+
+  // return (
+  //   <Button
+  //     color="primary"
+  //     component="span"
+  //     onClick={() => {
+  //       fileSelectionRef.current.click();
+  //     }}
+  //   >
+  //     <div
+  //       style={{
+  //         width: "100px",
+  //         height: "131px",
+  //         background: "#F4F6F8",
+  //       }}
+  //     >
+  //       <div
+  //         style={{
+  //           width: "80px",
+  //           height: "75px",
+  //           marginLeft: "10px",
+  //           marginRight: "10px",
+  //           marginTop: "10px",
+  //           border: "1px dashed #233044",
+  //           boxSizing: "border-box",
+  //           borderRadius: "12px",
+  //           alignContent: "center",
+  //         }}
+  //       >
+  //         <input
+  //           onChange={(e) => {
+  //             action(e.target.files);
+  //           }}
+  //           ref={fileSelectionRef}
+  //           multiple={multiple}
+  //           style={{ display: "none" }}
+  //           id="icon-button-file"
+  //           type="file"
+  //         />
+  //         <Box
+  //           display="flex"
+  //           justifyContent="center"
+  //           m={1}
+  //           p={1}
+  //           style={{ marginTop: "20px" }}
+  //         >
+  //           <Add fontSize={"12px"} />
+  //         </Box>
+  //       </div>
+  //       <Box
+  //         display="flex"
+  //         justifyContent="center"
+  //         m={1}
+  //         p={1}
+  //         style={{
+  //           fontSize: "12px",
+  //         }}
+  //       >
+  //         <label>Upload</label>
+  //       </Box>
+  //     </div>
+  //   </Button>
+  // );
+};
+
+function UserException(message) {
+  return { message: message, name: "Upload File Exception" };
+}
+
+const UploadPreview = ({ multiple, disabled, file, onDelete, onUploaded, onUpdated,onClick }) => {
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState();
+  const [loadingFileInfo, setLoadingFileInfo] = useState(true);
+  console.log("asgkdjasasdasdas",file)
+  const uploadFile = () => {
+    setError(null);
+    setProgress(0);
+    Upload(
+      file.data,
+      Post_FileUpload_URL,
+      (error) => {
+        setError(error.data);
+      },
+      (res) => {
+        onUploaded(file, res.data);
+        setLoadingFileInfo(false);
+      },
+      (event) => {
+        setProgress(Math.round((100 * event.loaded) / event.total));
+      }
+    );
+  };
+
+  ////  Uploading file if its new
+  useEffect(() => {
+    if (file.data) {
+      uploadFile();
+    } else {
+      GetFileInfo(
+        file.fileAddress,
+        (resp) => {
+          onUpdated(resp);
+          setLoadingFileInfo(false);
+        },
+        (error) => {}
+      );
+      setProgress(100);
+    }
+  }, []);
+
+  const download = () => {
+    if (file.fileAddress) {
+      DownloadFile(file.fileAddress);
+    }
+  };
+
+  const deleteFile = () => {
+    if (file.fileAddress) {
+      DeleteFile(file.fileAddress, (resp) => {
+        onDelete(file);
+      });
+    }
+  };
+
+  const getFileName = () => {
+    if (file.fileName) {
+      var leftRightStrings = file.fileName.split(".");
+      //file name
+      var fName = leftRightStrings[0];
+      //file extension
+      var fExtention = leftRightStrings[1];
+      var lengthFname = fName.length;
+      //if file name without extension contains more than 15 characters
+
+      if (lengthFname > 15) {
+        return fName.substr(0, 8) + "..." + fName.substr(-4) + "." + fExtention;
+      } else return file.fileName;
+    }
+  };
+  
+  const showImage=((file?.fileName) && ((file?.fileName).split(".").pop())=="pdf") ?
+   pdfImage :
+  ((file?.fileName) && ((file?.fileName).split(".").pop())=="docx")?
+   docxImage :
+   ((file?.fileName) && ((file?.fileName).split(".").pop())=="doc") ?
+    docxImage:
+    GetFile(file?.fileAddress);
+
+  return (
+    multiple?
+    <div
+      style={{
+        background: "#F4F6F8",
+        padding: "10px",
+        width: "350px",
+      }}
+    >
+      {loadingFileInfo ? (
+        <CircularProgress />
+      ) : (
+        <Box display="flex">
+          <p style={{ width: "200px", textOverflow: "ellipsis" }}>
+            {" "}
+            {getFileName()}{" "}
+          </p>
+          {progress < 100 ? (
+            error ? (
+              <TryAgainButton onClick={() => uploadFile()} />
+            ) : (
+              <LinearProgressWithLabel
+                progress={progress}
+                style={{ width: "100px" }}
+              />
+            )
+          ) : (
+            <DownloadButton
+              variant="contained"
+              title={getTranslation("Download", "T�l�charger", "Herunterladen")}
+              onClick={() => download()}
+            />
+          )}
+          {disabled ? null : <DeleteButton onClick={deleteFile} />}
+        </Box>
+      )}
+    </div>
+    :
+    <>
+      <Box display="flex" width="180px"
+         height="165px" padding={"20px"}>
+          {progress < 100 ? (
+            error ? (
+              <TryAgainButton onClick={() => uploadFile()} />
+            ) : (
+              <LinearProgressWithLabel
+                progress={progress}
+                style={{ width: "100px" }}
+              />
+            )
+          ) : (
+            <img src={showImage} onClick={()=>onClick(file?.fileAddress)}  alt="File or Image extension not found" />
+          )
+        }
+        {disabled ? null :<DeleteButton onClick={deleteFile} />}
+      </Box>
+        <Typography
+          variant="h6"
+          component="h2"
+          align="center"
+          style={{ wordWrap: "break-word",width:"200px" }}>
+          {file?.fileName}
+        </Typography>
+      </>
+  );
+};
+
+export const UploadFiles = ({
+  disabled,
+  uploadedFiles,
+  onAddFile,
+  onDeleteFile,
+  getFileName,
+  onClick,
+  multiple=true
+}) => {
+  if (typeof onAddFile === "undefined" && disabled === false)
+    throw new Error("onAddFile callBack is not defined.");
+  if (typeof onDeleteFile === "undefined" && disabled === false)
+    throw new Error("onDeleteFile callBack is not defined.");
+  if (typeof getFileName === "undefined")
+    throw new Error("getFileName callBack is not defined.");
+
+  useEffect(() => {
+    console.log('asgkdjasasdasdas',uploadedFiles);
+
+    if (
+      uploadedFiles &&
+      uploadedFiles.length > 0 &&
+      isUploadedFilesAttached === false
+    ) {
+      const arr = [];
+      uploadedFiles?.forEach((item) => {
+        arr.push({ fileAddress: getFileName(item) });
+      });
+      onFilesChanged(arr);
+      setIsUploadedFilesAttached(true);
+    }
+  }, [uploadedFiles]);
+
+  const [filesTemp, onFilesChanged] = useState([]);
+  const [isUploadedFilesAttached, setIsUploadedFilesAttached] = useState(false);
+
+  const removeFile = (file) => {
+    if (onDeleteFile) {
+      onDeleteFile(file.fileAddress);
+    }
+    onFilesChanged(filesTemp.filter((x) => x.fileAddress != file.fileAddress));
+  };
+
+  const updateFile = (file) => {
+    const newfiles = [...filesTemp];
+    var index = newfiles.findIndex((x) => x.fileAddress == file.fileAddress);
+    newfiles[index] = file;
+    onFilesChanged(newfiles);
+  };
+
+  return (
+    <>
+      {disabled || (multiple===false && filesTemp.length===1) ? null : (
+        <UploadDropZone
+          multiple={multiple}
+          onAccepted={(newfiles) => {
+            const items = [];
+            for (var i = 0; i < newfiles.length; i++) {
+              const file = newfiles[i];
+              const newFile = {
+                fileName: file.name,
+                data: file,
+                fileAddress: "",
+              };
+              items.push(newFile);
+            }
+            onFilesChanged([...filesTemp, ...items]);
+          }}
+        />
+      )}
+      <Grid
+        container
+        spacing={2}
+        style={{ marginTop: "10px", marginBottom: "10px" }}
+      >
+        
+        { filesTemp?.map((file, i) => {
+          return (
+            <Grid item>
+              <UploadPreview
+                disabled={disabled}
+                file={file}
+                onDelete={(deleteFile) => {
+                  removeFile(deleteFile);
+                }}
+                onUploaded={(file, resp) => {
+                  onAddFile(resp);
+                  const arr = filesTemp;
+                  const fileIndex = arr.findIndex(
+                    (x) => x.fileName == file.fileName
+                  );
+                  arr[fileIndex] = {
+                    fileName: arr[fileIndex].fileName,
+                    fileAddress: resp,
+                  };
+                  
+                  onFilesChanged([...arr]);
+                }}
+                onUpdated={updateFile}
+                onClick={onClick}
+              />
+            </Grid>
+          );
+        })}
+      </Grid>
+    </>
+  );
+};
+
+function LinearProgressWithLabel({ progress, style }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center" }}>
+      <Box sx={{ width: "100%", mr: 1 }}>
+        <LinearProgress variant="determinate" style={style} value={progress} />
+      </Box>
+      <Box sx={{ minWidth: 35 }}>
+        <Typography variant="body2" color="text.secondary">{`${Math.round(
+          progress
+        )}%`}</Typography>
+      </Box>
+    </Box>
+  );
+}
+
+LinearProgressWithLabel.propTypes = {
+  /**
+   * The value of the progress indicator for the determinate and buffer variants.
+   * Value between 0 and 100.
+   */
+  value: PropTypes.number.isRequired,
+};

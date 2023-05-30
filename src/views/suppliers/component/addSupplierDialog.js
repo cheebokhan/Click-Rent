@@ -1,0 +1,337 @@
+import React, { useState, useEffect } from "react";
+import { Grid, TextField, Box, Typography } from "@material-ui/core";
+import Switch from "../../../components/Switch";
+import { Form, Formik } from "formik";
+import ButtonWithLoading from "../../../components/ButtonWithLoading";
+import * as Yup from "yup";
+import Autocomplete, {
+  createFilterOptions,
+} from "@material-ui/lab/Autocomplete";
+import { Get, Post } from "../../../actions";
+import {
+  Get_AllSupplierCategories_URL,
+  Get_AttachedSupplierCategories_URL,
+  Get_SupplierCategories_URL,
+  Post_AttachSupplierCategory_URL,
+  Post_DeAttachSupplierCategory_URL,
+  Post_InsertSupplierCategory_URL,
+} from "../../../constants/apiUrls";
+import DialogComponent from "../../../components/Dialog";
+import { getTranslation } from "../../../heplers/translationHelper";
+
+const AddSupplierDialog = ({
+  enableEdit,
+  isOpen,
+  onClose,
+  onSubmit,
+  supplier,
+  supplierCategories,
+}) => {
+  const filter = createFilterOptions();
+  const [selectedCategries, setSelectedCategories] = useState([]);
+
+  const categoryList = [
+    {
+      id: 1,
+      title: "energy",
+    },
+    {
+      id: 2,
+      title: "Bank Credit",
+    },
+    {
+      id: 3,
+      title: "Water",
+    },
+    {
+      id: 4,
+      title: "Repairs",
+    },
+  ];
+  //const [categoryList, setCategories] = useState([]);
+  const initialValues = {
+    //name: "",
+    company: "",
+    ban: "",
+    phone: "",
+    email: "",
+    isActive: true,
+  };
+
+  const basicValidationSchema = Yup.object().shape({
+    //name: Yup.string().required(" name is required"),
+    company: Yup.string().required("Company is required"),
+    // ban: Yup.string().required("Bank Account is required"),
+    // phone: Yup.string().required("phone is required"),
+    // email: Yup.string().email().required("Email is required"),
+    category:Yup.string().required("At least one category is required"),
+  });
+
+  const createNewCategory = (item) => {
+    Post(
+      item,
+      Post_InsertSupplierCategory_URL,
+      null,
+      (resp) => {
+        setSelectedCategories([...selectedCategries, resp.data]);
+      },
+      (error) => {}
+    );
+  };
+
+  const attachNewCategory = (item) => {
+    if (supplier) {
+      Post(
+        {
+          supplierCategoryId: item.id,
+          supplierId: supplier.id,
+        },
+        Post_AttachSupplierCategory_URL,
+        null,
+        (resp) => {
+          setSelectedCategories([...selectedCategries, item]);
+        },
+        (error) => {}
+      );
+    } else {
+      setSelectedCategories([...selectedCategries, item]);
+    }
+  };
+
+  const removeCategory = (item) => {
+    if (supplier) {
+      Post(
+        {
+          supplierCategoryId: item.id,
+          supplierId: supplier.id,
+        },
+        Post_DeAttachSupplierCategory_URL,
+        null,
+        (resp) => {
+          setSelectedCategories(selectedCategries.filter((x) => x !== item));
+        },
+        (error) => {}
+      );
+    } else {
+      setSelectedCategories(selectedCategries.filter((x) => x !== item));
+    }
+  };
+
+  useEffect(() => {
+    if (supplier) {
+      Get(
+        { supplierId: supplier.id },
+        Get_AttachedSupplierCategories_URL,
+        null,
+        (resp) => {
+          setSelectedCategories(resp.data);
+        },
+        (error) => {}
+      );
+    }
+  }, [supplier]);
+
+  const defaultValue = supplier ? supplier : initialValues;
+  return (
+    <DialogComponent
+      open={isOpen}
+      onClose={() => {
+        onClose();
+        setSelectedCategories([]);
+      }}
+      title={getTranslation("Add Supplier","Add Supplier","Add Supplier")}
+    >
+      <br />
+      <Formik
+        enableReinitialize
+        initialValues={defaultValue}
+        validationSchema={basicValidationSchema}
+        onSubmit={(values, actions) => {
+          const arr = [];
+          selectedCategries.forEach((item) => {
+            item.supplierCategoryId = item.id;
+            arr.push(item);
+          });
+          values.supplierSupplierCategories = arr;
+          actions.setSubmitting(true);
+          onSubmit(values, actions);
+          actions.resetForm(initialValues);
+          setSelectedCategories([]);
+        }}
+      >
+        {({
+          errors,
+          touched,
+          values,
+          handleSubmit,
+          handleChange,
+          isSubmitting,
+          getFieldProps,
+          setFieldValue,
+          setFieldTouched
+        }) => (
+          <Form>
+            <Grid container spacing={2}>
+              <Grid item xs={6} sm={6} md={6} lg={6}>
+                <TextField
+                  fullWidth
+                  label={getTranslation("Company","Company","Company")}
+                  required
+                  size="small"
+                  variant="outlined"
+                  name="company"
+                  {...getFieldProps("company")}
+                  error={touched.company && Boolean(errors.company)}
+                  helperText={touched.company && errors.company}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={6} md={6} lg={6}>
+                <TextField
+                  fullWidth
+                  label={getTranslation("Phone","Phone","Phone")}
+                  size="small"
+                  variant="outlined"
+                  name="phone"
+                  {...getFieldProps("phone")}
+                  error={touched.phone && Boolean(errors.phone)}
+                  helperText={touched.phone && errors.phone}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={6} md={6} lg={6}>
+                <TextField
+                  fullWidth
+                  label={getTranslation("Bank Account","Bank Account","Bank Account")}
+                  
+                  size="small"
+                  variant="outlined"
+                  name="ban"
+                  {...getFieldProps("ban")}
+                  error={touched.ban && Boolean(errors.ban)}
+                  helperText={touched.ban && errors.ban}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={6} md={6} lg={6}>
+                <TextField
+                  fullWidth
+                  label={getTranslation("Email","Email","Email")}
+                  
+                  size="small"
+                  variant="outlined"
+                  name="email"
+                  {...getFieldProps("email")}
+                    error={touched.email && Boolean(errors.email)}
+                    helperText={touched.email && errors.email}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={12} md={12} lg={12}>
+                <Autocomplete
+                  name="category"
+                  multiple
+                  size="small"
+                  value={selectedCategries}
+                  options={supplierCategories}
+                  autoComplete="off"
+                  getOptionLabel={(option) => option.name}
+                  //   style={{ width: 300 }}
+                  onChange={(e, value) => {
+                    value.forEach((item) => {
+                      // checking if its new
+                      if (item.inputValue) {
+                        createNewCategory({
+                          name: item.inputValue,
+                          supplierId: supplier?.id,
+                        });
+                      }
+                      // checking if its attaching already created
+                      else if (
+                        selectedCategries.findIndex((x) => x == item) == -1
+                      ) {
+                        attachNewCategory(item);
+                      }
+                    });
+
+                    // checking if its removed
+                    selectedCategries.forEach((item) => {
+                      if (value.findIndex((x) => x == item) == -1)
+                        removeCategory(item);
+                    });
+                  }}
+                  filterSelectedOptions
+                  filterOptions={(options, params) => {
+                    const filtered = filter(options, params);
+
+                    // Suggest the creation of a new value
+                    if (params.inputValue != "") {
+                      filtered.push({
+                        inputValue: params.inputValue,
+                        name: `Add new category "${params.inputValue}"`,
+                      });
+                    }
+
+                    return filtered;
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label={getTranslation("Categories","Categories","Categories")}
+                      variant="outlined"
+                      required
+                      error={Boolean(errors.category)}
+                      helperText={errors.category}
+                      InputProps={{
+                        ...params.InputProps,
+                      }}
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                      onBlur={() => setFieldTouched("category", true)}
+                    />
+                  )}
+                />
+              </Grid>
+            </Grid>
+            <Box
+              pr={1}
+              pb={1}
+              width="100%"
+              display="flex"
+              alignItems="center"
+              justifyContent="flex-end"
+            >
+              <Typography>{getTranslation("Status","Status","Status")}
+                <Switch
+                  id="isActive"
+                  checked={values.isActive}
+                  onChange={handleChange}
+                />
+              </Typography>
+              <ButtonWithLoading
+                title={enableEdit ? getTranslation("Update","Update","Update") : getTranslation("Add","Add","Add")}
+                size="small"
+                variant="contained"
+                color="primary"
+                type="submit"
+                loading={isSubmitting}
+                onClick={handleSubmit}
+              />
+            </Box>
+          </Form>
+        )}
+      </Formik>
+    </DialogComponent>
+  );
+};
+
+export default AddSupplierDialog;

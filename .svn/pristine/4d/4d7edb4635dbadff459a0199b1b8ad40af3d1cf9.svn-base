@@ -1,0 +1,372 @@
+import React from "react";
+import { EditButton } from "../../../../../components/ButttonsWithIcons";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router";
+import AlertDialog from "../../../../../components/DeleteDialog";
+import { Get, Post } from "../../../../../actions";
+import { useSnackbar } from "notistack";
+import {
+  Get_CostWithPagination_URL,
+  Post_DeleteAppartment_URL,
+  Post_InsertAppartment_URL,
+  Post_UpdateAppartment_URL,
+} from "../../../../../constants/apiUrls";
+import { Card, CardContent, CardHeader, Grid, Typography } from "@material-ui/core";
+import AddAppartmentDialog from "./addApartmentDialog";
+import { ToggleButton, ToggleButtonGroup } from "@material-ui/lab";
+import { getTranslation } from "../../../../../heplers/translationHelper";
+import TableComponent from "../../../../../components/table";
+import moment from "moment";
+import { DatePicker } from "../../../../../components/DatePicker";
+
+const costColumns = [
+  {
+    id: "date",
+    label: getTranslation("Date", "Date", "Date"),
+    format: "date"
+  }, {
+    id: "supplierName",
+    numeric: false,
+    disablePadding: true,
+    label: getTranslation("Supplier", "Fournisseur", "Lieferant"),
+  },
+  {
+    id: "activity",
+    numeric: false,
+    disablePadding: true,
+    label: getTranslation("Category", "Catégorie", "Art"),
+  },
+  {
+    id: "amountDeposit",
+    align: "right",
+    label: getTranslation("Expenses", "Expenses", "Expenses"),
+    format: "number",
+  },
+];
+const apartmentColumns = [
+  {
+    id: "apartmentNo",
+    numeric: false,
+    disablePadding: true,
+    label: getTranslation("Appartment No", "Appartement Nr", "Wohnung Nr"),
+  },
+  {
+    id: "status",
+    disablePadding: true,
+    label: getTranslation("Status", "Statut", "Status"),
+    component:({row})=><Typography> {row.status.replace( "Occupied",getTranslation("Occupied","Occupied","Occupied"))
+    .replace( "Reserved",getTranslation("Reserved","Reserved","Reserved"))
+    .replace( "Available",getTranslation("Available","Available","Available"))
+     .replace( "On Notice",getTranslation("On Notice Period","On Notice Period","On Notice Period"))}
+     </Typography>
+
+  },
+  {
+    id: "amount",
+    align: "right",
+    label: getTranslation("Rent", "Louer", "Mieten"),
+    format: "number",
+  },
+  {
+    id: "activeTenantName",
+    disablePadding: true,
+    label: getTranslation("Active Tenant", "Nom du locataire", "Mietername"),
+  },
+  {
+    id: "reservedTenantName",
+    disablePadding: true,
+    label: getTranslation("Reserved Tenant", "Nom du locataire", "Mietername"),
+  },
+
+
+  {
+    id: "actions",
+    numeric: true,
+    disablePadding: true,
+    label: getTranslation("Action", "Action", "Aktion"),
+    align: "right",
+  },
+];
+
+const Appartments = ({
+  loading,
+  rows,
+  onFilter,
+  onDelete,
+  onApartmentAdd,
+  onApartmentUpdate,
+}) => {
+  const [searchString, setSearchString] = useState("");
+  const [page, setPage] = useState(0);
+  let pageSize = localStorage.getItem("sizeAppart")
+  if (pageSize == null) {
+    localStorage.setItem("sizeAppart", 10)
+    pageSize = 10;
+  }
+  const [rowsPerPage, setRowsPerPage] = useState(pageSize);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [deletedRow, setDeletedRow] = useState();
+  const [editAprtment, setEditAprtment] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [type, setType] = useState(0);
+  const currentDate=moment();
+  currentDate.set("day",(currentDate.get("day") - 1)*-1)
+  const [from, setFrom] = useState(currentDate);
+  const [to, setTo] = useState(moment());
+  const [buildingCost, setBuildingCost] = useState([]);
+  const { enqueueSnackbar } = useSnackbar();
+  const [openCreateAppartmentDialog, setOpenCreateAppartmentDialog] =
+    useState(false);
+  const [costSort, setCostSort] = useState("date");
+  const [costSortDirection, setCostSortDirection] = useState(1);
+
+  const { buildingId } = useParams();
+  useEffect(() => {
+    if (type == 0)
+      onFilter({
+        buildingId: buildingId,
+        searchString: searchString,
+        pageNumber: page,
+        pageSize: rowsPerPage,
+      });
+  }, [page, searchString, rowsPerPage]);
+  //handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    localStorage.setItem("sizeAppart", parseInt(event.target.value));
+    setRowsPerPage(localStorage.getItem("sizeAppart"));
+    setPage(0);
+  };
+  const handleSearchappartment = (searchString) => {
+    setSearchString(searchString);
+  };
+
+  const hanldeOnEditApartment = (apartment) => {
+    setOpenCreateAppartmentDialog(true);
+    setEditAprtment(apartment);
+  };
+
+  const handleOpenDeleteDialog = (row) => {
+    //onDelete(row);
+    setDeletedRow(row);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleDeleteAppartment = () => {
+    setDeleting(true);
+    Post(
+      { ids: [deletedRow.id] },
+      Post_DeleteAppartment_URL,
+      null,
+      (resp) => {
+        onDelete(deletedRow);
+        enqueueSnackbar("Appartment is deleted.", { variant: "success" });
+        setDeleting(false);
+        setOpenDeleteDialog(false);
+      },
+      (error) => {
+        enqueueSnackbar(
+          "Not able to delete. Appartment is attached with some data.",
+          { variant: "error" }
+        );
+        setOpenDeleteDialog(false);
+        setDeleting(false);
+      }
+    );
+  };
+
+  const handleCreateAprtment = () => {
+    setOpenCreateAppartmentDialog(true);
+  };
+
+  const submitApartment = async (values, actions) => {
+    Post(
+      values,
+      editAprtment ? Post_UpdateAppartment_URL : Post_InsertAppartment_URL,
+      null,
+      (resp) => {
+        setOpenCreateAppartmentDialog(false);
+        actions.setSubmitting(false);
+        enqueueSnackbar(
+          editAprtment
+            ? "Apartment information Updated"
+            : "Apartment information Added",
+          { variant: "success" }
+        );
+        editAprtment ? onApartmentUpdate(editAprtment) : onApartmentAdd();
+      },
+      (error) => {
+        setOpenCreateAppartmentDialog(false);
+        actions.setSubmitting(false);
+        enqueueSnackbar("Something Went wrong", {
+          variant: "error",
+        });
+      }
+    );
+  };
+
+  useEffect(() => {
+    if (type == 1)
+      loadBuildingCostList()
+  }, [page, searchString, rowsPerPage, costSort, costSortDirection,from,to])
+  const loadBuildingCostList = () => {
+    Get(
+      {
+        buildingId: buildingId,
+        searchString: searchString,
+        pageNumber: page,
+        pageSize: rowsPerPage,
+        sort: costSort,
+        sortDirection: costSortDirection,
+        from:moment(from).format("MM-DD-YYYY"),
+        to:moment(to).format("MM-DD-YYYY")
+      },
+      Get_CostWithPagination_URL,
+      null,
+      (resp) => {
+        setBuildingCost(resp?.data);
+      },
+      (error) => {
+        enqueueSnackbar("Can't load building costs", { variant: "error" });
+      }
+    );
+  };
+  return (
+    <>
+      <Card>
+        <CardHeader />
+        <CardContent>
+          <ToggleButtonGroup
+            size="small"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            id="type"
+            //defaultChecked={type}
+            value={type}
+            exclusive
+            onChange={(event, type) => {
+              if (type !== null) {
+                setType(type);
+                if (type == 1) {
+                  loadBuildingCostList();
+                }
+              }
+            }}
+          >
+            <ToggleButton value={0} aria-label="left aligned">
+              <Typography>{getTranslation("Apartments", "Appartements", "Wohnungen")}</Typography>
+            </ToggleButton>
+            <ToggleButton value={1} aria-label="centered">
+              <Typography>{getTranslation("Expenses", "Expenses", "Expenses")}</Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <br />
+          {type === 0 ? (
+            <TableComponent
+              loading={loading}
+              dense
+              //title="Apartments"
+              colums={apartmentColumns}
+              sortBy="name"
+              rows={rows?.data}
+              count={rows?.totalCount}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              handleChangePage={handleChangePage}
+              handleChangeRowsPerPage={handleChangeRowsPerPage}
+              actions={[
+                {
+                  component: (rowData) => (
+                    <EditButton
+                      onClick={() => {
+                        hanldeOnEditApartment(rowData);
+                      }}
+                    />
+                  ),
+                },
+              ]}
+              viewSearch
+              onSearch={(searchString) => handleSearchappartment(searchString)}
+              viewDelete
+              onDelete={handleOpenDeleteDialog}
+              viewCreate
+              onCreate={handleCreateAprtment}
+            />
+            ) : (
+              <>
+                <Grid container spacing={2}>
+                  <Grid item>
+                    <DatePicker
+                      label={getTranslation("From", "From", "From")}
+                      value={from}
+                      required
+                      onChange={(newDate) => {
+                        setFrom(newDate)
+                      }}
+                    />
+                  </Grid>
+                  <Grid item>
+                    <DatePicker
+                      label={getTranslation("To", "To", "To")}
+                      value={to}
+                      required
+                      onChange={(newDate) => {
+                        setTo(newDate)
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+
+                <TableComponent
+                  //loading={loading}
+                  dense
+                  //title="Apartments"
+                  colums={costColumns}
+                  sortBy="date"
+                  sortDirection="desc"
+
+                  rows={buildingCost?.data}
+                  count={buildingCost?.totalCount}
+                  page={page}
+                  rowsPerPage={rowsPerPage}
+                  handleChangePage={handleChangePage}
+                  handleChangeRowsPerPage={handleChangeRowsPerPage}
+                  viewSearch
+                  onSearch={(searchString) => handleSearchappartment(searchString)}
+                  onSorting={(property, direction) => {
+                    setCostSort(property);
+                    setCostSortDirection(direction === "asc" ? 0 : 1);
+                  }}
+
+                />
+            </>
+          
+          )}
+        </CardContent>
+      </Card>
+      <AddAppartmentDialog
+        apartment={editAprtment}
+        enableEdit={editAprtment !== null}
+        isOpen={openCreateAppartmentDialog}
+        onClose={() => {
+          setOpenCreateAppartmentDialog(false);
+          setEditAprtment(null);
+        }}
+        onSubmit={submitApartment}
+      />
+      <AlertDialog
+        open={openDeleteDialog}
+        deleting={deleting}
+        onClose={() => setOpenDeleteDialog(false)}
+        onSubmit={handleDeleteAppartment}
+      />
+    </>
+  );
+};
+export default Appartments;

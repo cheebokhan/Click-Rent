@@ -1,0 +1,1 @@
+export {tenantCategories} from './tenantCategories'

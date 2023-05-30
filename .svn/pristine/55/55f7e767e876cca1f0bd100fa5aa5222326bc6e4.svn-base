@@ -1,0 +1,287 @@
+import React from "react";
+import { makeStyles, Typography, Box } from "@material-ui/core";
+import { Card, CardContent, Grid } from "@material-ui/core";
+import Moment from "moment";
+import { getTranslation } from "../../../../../heplers/translationHelper";
+import LogoFile1 from "../../../../../assests/icons/favIcon.png";
+import { ReportLayout, reportStyles } from "../../../../report/ReportLayout";
+import { format } from "../../../../../heplers/format";
+import _ from "lodash";
+
+const PrintDialog = React.forwardRef(({ rows, tenant, activeContract, sendByPost, message }, ref) => {
+  const classes = reportStyles();
+  const noData = typeof rows === "undefined";
+  return (<ReportLayout ref={ref} noData={noData} title={sendByPost ? getTranslation("Reminder For Payment Due", "Reminder For Payment Due", "Reminder For Payment Due"):getTranslation("Tenant Report", "Tenant Report", "Tenant Report")}>
+    <div>
+      <Card style={{ marginBottom: '50px' }}>
+        <CardContent>
+          <Grid container>
+            <Grid xs={8} sm={8} md={8} >
+              <Grid container style={{ borderRight: '1px gray solid' }}>
+                {/* Row1 */}
+                <Grid item xs={2} sm={2} md={2}>
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("Reference", "Reference", "Reference")}
+                  </Typography>
+                </Grid>
+                <Grid item xs={10} sm={10} md={10}>
+                  <Typography className={classes.subtitle}>
+                    {tenant?.referenceCode}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={2} sm={2} md={2}>
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("Name", "Nom", "Name")}
+                  </Typography>
+                </Grid>
+                <Grid item xs={3} sm={3} md={3}>
+                  <Typography className={classes.subtitle}>
+                    {tenant?.name}
+                  </Typography>
+                </Grid>
+                <Grid item xs={2} sm={2} md={2}></Grid>
+                <Grid item xs={2} sm={2} md={2}>
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("Building", "Immeubles", "Immobilien")}
+                  </Typography>
+                </Grid>
+                <Grid item xs={3} sm={3} md={3}>
+                  <Typography className={classes.subtitle}>
+                    {activeContract ? activeContract?.buildingName : getTranslation("NA", "NA", "NA")}
+                  </Typography>
+                </Grid>
+                {/* Row2 */}
+                <Grid item xs={2} sm={2} md={2}>
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("ID", "ID", "ID")}
+                  </Typography>
+                </Grid>
+                <Grid item xs={3} sm={3} md={3}>
+                  <Typography className={classes.subtitle}>
+                    {" "}
+                    {tenant?.idCard}{" "}
+                  </Typography>
+                </Grid>
+                <Grid item xs={2} sm={2} md={2}></Grid>
+                <Grid item xs={2} sm={2} md={2}>
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("Apartment", "Logement", "Wohnung")}
+                  </Typography>
+                </Grid>
+                <Grid item xs={3} sm={3} md={3}>
+                  <Typography className={classes.subtitle}>
+                    {activeContract ? activeContract?.apartmentNo : getTranslation("NA", "NA", "NA")}
+                  </Typography>
+
+                </Grid>
+                {/* Row3 */}
+                <Grid item xs={2} sm={2} md={2}>
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("Phone", "T�l�phone", "Telefon")}
+                  </Typography>
+                </Grid>
+                <Grid item xs={3} sm={3} md={3}>
+                  <Typography className={classes.subtitle}>
+                    {tenant?.telephone}
+                  </Typography>
+                </Grid>
+                <Grid item xs={2} sm={2} md={2}></Grid>
+                {activeContract ? <>
+                  <Grid item xs={2} sm={2} md={2}> <Typography className={classes.titleStyles}>
+                    {getTranslation("Contract", "Contract", "Contract")}
+                  </Typography></Grid>
+                  <Grid item xs={3} sm={3} md={3}>
+                    <Typography className={classes.subtitle}>
+
+                      {activeContract ? format("date", activeContract?.startDate) : null}
+                    </Typography>
+                    <Typography className={classes.subtitle}>
+                      {activeContract ? activeContract?.statusText : null}
+                    </Typography>
+                    {activeContract && activeContract.status == 0 ?
+                      <Typography className={classes.subtitle}>
+                        {format("date", activeContract?.endDate)}
+                      </Typography> : null}
+                  </Grid></>
+                  : null}
+              </Grid>
+            </Grid>
+            <Grid xs={4} sm={4} md={4}>
+              <Box style={{ textAlign: "center" }}>
+
+                <Typography className={classes.blueColor}>
+                  {getTranslation("Balance", "Solde", "Saldo")}
+                </Typography>
+                <br />
+                <Typography className={classes.maltoseColor}>
+                  {tenant?.accountBalance.toFixed(2)}
+                </Typography>
+              </Box>
+            </Grid>
+           
+          </Grid>
+        </CardContent>
+      </Card>
+      <div>
+      {sendByPost?
+            <div style={{marginBottom:'20px'}} >
+              <Typography className={classes.titleStyles}>{getTranslation("Message","Message","Message")}:</Typography>
+              <Typography className={classes.subtitle}>{message}</Typography>
+            </div>:null}
+        <table className={classes.table}>
+          <thead>
+            <tr>
+              <th>
+                <Typography className={classes.titleStyles}>
+                  {getTranslation(
+                    "Date",
+                    "Date",
+                    "Date"
+                  )}</Typography>
+              </th>
+              <th>
+                <Typography className={classes.titleStyles}>
+                  {getTranslation("Description", "La description", "Beschreibung")}</Typography>
+
+              </th>
+              <th style={{ textAlign: "right" }}>
+                <Typography className={classes.titleStyles}>
+                  {getTranslation("Due", "Payable", "F�llig")}</Typography>
+
+              </th>
+              <th style={{ textAlign: "right" }}>
+                <Typography className={classes.titleStyles}>
+                  {getTranslation("Bank", "Banque", "Bank")}</Typography>
+
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows?.data?.map((item) => (
+              <tr>
+                <td>
+                  <Typography className={classes.subtitle}>
+
+                    {Moment(item.date).format("DD-MM-YYYY")}
+                  </Typography>
+                  <Typography style={{
+                    color: 'red',
+                    fontSize: '9px'
+                  }}>
+                    {item.postponedReason}
+                  </Typography>
+                </td>
+                <td style={{ verticalAlign: 'top' }}>
+                  <Typography className={classes.subtitle}>
+
+                    {item.description}
+                  </Typography>
+                </td>
+                <td align="right" style={{ verticalAlign: 'top' }}>
+                  <Typography className={classes.subtitle}>
+                    {item.dueGenerated.toFixed(2)}
+                  </Typography>
+                </td>
+                <td align="right" style={{ verticalAlign: 'top' }}>
+                  <Typography className={classes.subtitle}>
+                    {item.amountDeposit.toFixed(2)}
+                  </Typography>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={4} style={{ height: "14px" }}></td>
+            </tr>
+            <tr>
+              <td align={"center"} style={{
+                background: "#233044",
+                color: "#fff",
+              }}>
+
+                <Typography className={classes.endCards}
+                >
+                  {getTranslation(" Total ", " Totale ", " Gesamt ")}
+                </Typography>
+
+              </td>
+              <td style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}></td>
+              <td align="right" style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}>
+                <Typography className={classes.endCards}>
+                  &euro;{" "}
+                  {_.sumBy(rows?.data, "dueGenerated").toFixed(2)}
+                </Typography>
+              </td>
+              <td align="right" style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}>
+                <Typography className={classes.endCards}>
+                  &euro;{" "}
+                  {_.sumBy(rows?.data, "amountDeposit").toFixed(2)}
+                </Typography>
+              </td>
+              {/* <td align="right" style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}>
+                <Typography className={classes.endCards}>
+                  &euro;
+                  {format("number", _.sum(rows?.data,"amountDeposit"))}
+                </Typography>
+              </td> */}
+            </tr>
+          </tfoot>
+          {/* <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>
+              <Box
+                item
+                style={{
+                  background: "#233044",
+                  color: "#fff",
+                }}
+                xs={2}
+                sm={2}
+                md={2}
+                lg={2}
+                className={classes.endCards}
+              >
+                <Typography>Total</Typography>
+              </Box>
+            </td>
+            <td>
+              <Box
+                item
+                xs={2}
+                sm={2}
+                md={2}
+                lg={2}
+                className={classes.endCards}
+                style={{
+                  background: "#EB5C3E",
+                  color: "#fff",
+                }}
+              >
+                <Typography>&euro; 00.00</Typography>
+              </Box>
+            </td>
+          </tr> */}
+        </table>
+      </div>
+    </div>
+  </ReportLayout>
+  );
+});
+
+export default PrintDialog;

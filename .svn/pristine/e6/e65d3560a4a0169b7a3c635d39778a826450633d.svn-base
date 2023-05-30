@@ -1,0 +1,7 @@
+ .PhoneInputInput{
+    height:40px;
+}
+.PhoneInputCountryIcon--square{
+    height:40px;
+border: 1px gray solid;
+}

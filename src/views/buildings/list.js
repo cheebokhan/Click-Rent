@@ -1,0 +1,175 @@
+import { AddBuildingDialog, Buildings } from "./component";
+import React, { useState, useEffect } from "react";
+import {
+  Post_AddBuilding_URL,
+  Post_UpdateBuilding_URL,
+  Get_AllBuildingsWithPagination_URL,
+  UpdateBuildingStatus,
+} from "../../constants/apiUrls";
+import { Get, Post } from "../../actions/apiActions";
+import { useSnackbar } from "notistack";
+import { useHistory } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { getTranslation } from "../../heplers/translationHelper";
+import Switch from "../../components/Switch";
+import { ToggleButton, ToggleButtonGroup } from "@material-ui/lab";
+import { Typography } from "@material-ui/core";
+import { Helmet } from "react-helmet";
+
+//state management
+const List = () => {
+  const history = useHistory();
+  const { enqueueSnackbar } = useSnackbar();
+  const [buildingLoading, setBuildingLoading] = useState(false);
+  const [addBuildingDialog, setAddBuildingDialog] = useState(false);
+  const [buildingList, setBuildingList] = useState();
+  const [editBuilding, setEditBuilding] = useState(null);
+
+  const [filterItems, setFilterItems] = useState({
+    searchString: "",
+    pageNumber: 0,
+    pageSize: 10,
+  });
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    dispatch({ type: "Clear_All_BreadCrumb" });
+    dispatch({
+      type: "Add_BreadCrumb",
+      payload: {
+        title: getTranslation(" Buildings ", " Immeubles ", " Immobilien "),
+        url: "/buildings",
+      },
+    });
+  }, []);
+  /////////////////////////////////////////// POST ///////////////////////////
+
+  const submitBuilding = async (values, actions) => {
+    Post(
+      values,
+      editBuilding ? Post_UpdateBuilding_URL : Post_AddBuilding_URL,
+      history,
+      (resp) => {
+        actions.setSubmitting(false);
+        setEditBuilding(null);
+        enqueueSnackbar("Building information Upserded ", {
+          variant: "success",
+        });
+        setAddBuildingDialog(false);
+        loadBuildings(filterItems);
+      },
+      (onError) => {
+        setAddBuildingDialog(false);
+        actions.setSubmitting(false);
+        enqueueSnackbar("Server error", {
+          variant: "error",
+        });
+      }
+    );
+  };
+  /////////////////////////////////////////// GET ////////////////////////////
+
+  const handleEditActivity = (row) => {
+    const url = `/buildings/${row.id}/apartments`;
+    dispatch({
+      type: "Add_BreadCrumb",
+      payload: { title: row.name, url: "/buildings" },
+    });
+    history.push(url);
+  };
+
+  //Get
+
+  useEffect(() => {
+    loadBuildings(filterItems);
+  }, [filterItems]);
+
+  const loadBuildings = (values) => {
+    setBuildingLoading(true);
+    setFilterItems(values);
+    Get(
+      values,
+      Get_AllBuildingsWithPagination_URL,
+      history,
+      (resp) => {
+        setBuildingLoading(false);
+        setBuildingList(resp?.data);
+      },
+      (onError) => {
+        setBuildingLoading(false);
+        enqueueSnackbar(
+          getTranslation(
+            " Internal server error ",
+            " Erreur interne du serveur ",
+            " Interner Serverfehler "
+          ),
+          { variant: "Error" }
+        );
+      }
+    );
+  };
+
+  const hanldeOnEditBuilding = (building) => {
+    setAddBuildingDialog(true);
+    setEditBuilding(building);
+  };
+  //////...... For Status of the buildings ....//////
+
+  const changeBuildingStatus = (rowData) => {
+    console.log("lakdlakldklaf", rowData);
+    return (
+      <>
+        <Switch
+          checked={rowData.status}
+          onChange={(e, checked) => {
+            Post(
+              {
+                buildingId: rowData.id,
+                status: checked,
+              },
+              UpdateBuildingStatus,
+              null,
+              (resp) => {
+                window.location.reload(true);
+              },
+              (error) => {}
+            );
+          }}
+        />
+      </>
+    );
+  };
+
+ 
+  return (
+    <div>
+      <Helmet>
+        <title>
+        {getTranslation("Buildings", "Buildings", "Buildings")}
+        </title>
+      </Helmet>
+      
+      <Buildings
+        loading={buildingLoading}
+        rows={buildingList}
+        onFilter={(values) => loadBuildings(values)}
+        onBuildingSelect={handleEditActivity}
+        onEdit={(building) => hanldeOnEditBuilding(building)}
+        onCreate={() => setAddBuildingDialog(true)}
+        /////,,,,Status for buildings.....///////
+        onStatusChanged={(rowData) => changeBuildingStatus(rowData)}
+      />
+      <AddBuildingDialog
+        isOpen={addBuildingDialog}
+        onClose={() => {
+          setAddBuildingDialog(false);
+          setEditBuilding(null);
+        }}
+        onSubmit={(values, actions) => submitBuilding(values, actions)}
+        building={editBuilding}
+        enableEdit={editBuilding !== null}
+      />
+    </div>
+  );
+};
+export default List;

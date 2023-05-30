@@ -1,0 +1,309 @@
+import {
+  Typography,
+  Box,
+} from "@material-ui/core";
+import React from "react";
+import { format } from "../../../../heplers/format";
+import { getTranslation } from "../../../../heplers/translationHelper";
+import _ from "lodash";
+import { ReportLayout, reportStyles } from "../../../report/ReportLayout";
+
+export const AllBuildingsReport = React.forwardRef(({ rows }, ref) => {
+  const classes = reportStyles();
+  const noData=typeof rows === "undefined";
+  return (
+
+    <ReportLayout ref={ref} noData={noData} title={getTranslation("All Building Report","All Building Report","All Building Report")}>
+      <table>
+        <tr>
+          <td>
+            <Typography className={classes.dateStyle} >
+              {getTranslation("From", "De", "Von")}:
+            </Typography>
+          </td>
+          <td>
+            <Typography className={classes.dateStyle} >{format("date", rows?.from)}</Typography>
+          </td>
+          <td>
+            <Typography className={classes.dateStyle}>
+              {getTranslation("To", "�", "Bis")}:
+            </Typography>
+          </td>
+          <td>
+            <Typography className={classes.dateStyle}>
+              {format("date", rows?.to)}
+            </Typography>
+          </td>
+
+        </tr>
+      </table>
+
+
+      <Box marginTop="25px" >
+        <Typography>  {getTranslation(
+          " Summary ",
+          " Summary ",
+          " Summary "
+        )}</Typography>
+        <table className={classes.table}>
+          <thead>
+            <tr>
+              <th width="40%" align="left">
+                <Typography className={classes.titleStyles}>
+                  {getTranslation(
+                    " Building ",
+                    " Building ",
+                    " Building "
+                  )}</Typography>
+              </th>
+              <th  width="20%" align="right"
+              >
+                <Typography className={classes.titleStyles}>
+                  {getTranslation("Expenses", "Expenses", "Expenses")}</Typography>
+              </th>
+              <th  width="20%" align="right"
+              >
+                <Typography className={classes.titleStyles}>
+                  {getTranslation(
+                    " Rent Paid ",
+                    " Loyer pay� ",
+                    " Miete bezahlt "
+                  )}</Typography>
+              </th>
+              <th  width="20%" align="right"
+              >
+                <Typography className={classes.titleStyles}>
+                  {getTranslation(
+                    " Balance ",
+                    " Solde ",
+                    " Gleichgewicht "
+                  )}</Typography>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows?.buildings?.map((building) => (
+              <tr>
+                <td >
+                  <Typography className={classes.subtitle}> {building?.name}</Typography>
+                </td>
+                <td align="right">
+                  <Typography className={classes.subtitle}> {format("number", building?.totalCost)}</Typography>
+                </td>
+
+                <td align="right">
+                  <Typography className={classes.subtitle}> {format("number", building?.totalRentPaid)}</Typography>
+                </td>
+                <td align="right">
+                  <Typography className={classes.subtitle}> {format("number", building?.totalBalance)}</Typography>
+                </td>
+              </tr>
+            ))}
+
+          </tbody>
+
+          <tfoot>
+            <tr>
+              <td colSpan={4} style={{ height: "14px" }}></td>
+            </tr>
+            <tr>
+              <td align={"center"} style={{
+                background: "#233044",
+                color: "#fff",
+              }}>
+
+                <Typography className={classes.titleStyles} align="left"
+                >
+                  {getTranslation(" Total ", " Totale ", " Gesamt ")}
+                </Typography>
+
+              </td>
+              <td align="right" style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}>
+                <Typography className={classes.titleStyles}>
+                  &euro;{" "}
+                  {format("number", _.sumBy(rows?.buildings, "totalCost"))}{" "}
+                </Typography>
+              </td>
+              <td align="right" style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}>
+                <Typography className={classes.titleStyles}>
+                  &euro;{" "}
+                  {format("number", _.sumBy(rows?.buildings, "totalRentPaid"))}{" "}
+                </Typography>
+              </td>
+
+              <td align="right" style={{
+                background: "#EB5C3E",
+                color: "#fff",
+              }}>
+                <Typography className={classes.titleStyles}>
+                  &euro;{" "}
+                  {format("number", _.sumBy(rows?.buildings, "totalBalance"))}{" "}
+                </Typography>
+              </td>
+            </tr>
+          </tfoot>
+
+
+        </table>
+        <br />
+        <hr />
+        <br />
+      </Box>
+      {rows?.buildings?.map((building) => (
+        <>
+          
+          <table className={classes.table}>
+            <thead> 
+              <tr>
+          <Typography component='p'>{building.name}</Typography>
+
+              </tr>
+              <tr>
+                <th width="40%" align="left" >
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation(
+                      " Apartment No ",
+                      " Appartement Non ",
+                      " Wohnung Nr "
+                    )}</Typography>
+                </th>
+                <th  width="20%" align="right"
+                >
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation(" Rent ", " Loyer", " Miete ")}</Typography>
+                </th>
+                <th  width="20%" align="right"
+                >
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation(
+                      " Rent Paid ",
+                      " Loyer pay� ",
+                      " Miete bezahlt "
+                    )}</Typography>
+                </th>
+                <th  width="20%" align="right"
+                >
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation(
+                      " Balance ",
+                      " Solde ",
+                      " Gleichgewicht "
+                    )}</Typography>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {building.apartments?.map((apartment) => (
+                <tr>
+                  <td >
+                    <Typography className={classes.subtitle}> {apartment?.apartmentNo}</Typography>
+                  </td>
+                  <td align="right">
+                    <Typography className={classes.subtitle}> {format("number", apartment?.totalRent)}</Typography>
+                  </td>
+
+                  <td align="right">
+                    <Typography className={classes.subtitle}> {format("number", apartment?.totalRentPaid)}</Typography>
+                  </td>
+                  <td align="right">
+                    <Typography className={classes.subtitle}> {format("number", apartment?.totalBalance)}</Typography>
+                  </td>
+                </tr>
+              ))}
+
+
+            </tbody>
+
+            <tfoot>
+              <tr>
+                <td colSpan={4} style={{ height: "14px" }}></td>
+              </tr>
+              <tr>
+                <td align={"center"} style={{
+                  background: "#233044",
+                  color: "#fff",
+                }}>
+
+                  <Typography className={classes.titleStyles} align="left"
+                  >
+                    {getTranslation(" Total ", " Totale ", " Gesamt ")}
+                  </Typography>
+
+                </td>
+                <td align="right" style={{
+                  background: "#EB5C3E",
+                  color: "#fff",
+                }}>
+                  <Typography className={classes.titleStyles}>
+                    &euro;{" "}
+                    {format("number", _.sumBy(building.apartments, "totalRent"))}{" "}
+                  </Typography>
+                </td>
+                <td align="right" style={{
+                  background: "#EB5C3E",
+                  color: "#fff",
+                }}>
+                  <Typography className={classes.titleStyles}>
+                    &euro;{" "}
+                    {format("number", _.sumBy(building.apartments, "totalRentPaid"))}{" "}
+                  </Typography>
+                </td>
+
+                <td align="right" style={{
+                  background: "#EB5C3E",
+                  color: "#fff",
+                }}>
+                  <Typography className={classes.titleStyles}>
+                    &euro;{" "}
+                    {format("number", _.sumBy(building.apartments, "totalBalance"))}{" "}
+                  </Typography>
+                </td>
+              </tr>
+              <tr>
+                
+                <td >
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("Total Expenses","Total Expenses","Total Expenses")}
+                  </Typography>
+                </td>
+                <td ></td>
+                <td align="right" >
+                  <Typography className={classes.titleStyles}>
+                    &euro;{" "}
+                    {format("number", building.totalCost)}{" "}
+                  </Typography>
+                </td>
+                <td ></td>
+              </tr>
+              <tr>
+                <td >
+                  <Typography className={classes.titleStyles}>
+                    {getTranslation("Profit","Profit","Profit")}
+                  </Typography>
+                </td>
+                <td ></td>
+                <td align="right" >
+                  <Typography className={classes.titleStyles}>
+                    &euro;{" "}
+                    {format("number", building.totalRentPaid - (building.totalCost>0 ? building.totalCost : (-1)*building.totalCost))}{" "}
+                  </Typography>
+                </td>
+                <td ></td>
+              </tr>
+            </tfoot>
+
+
+          </table>
+          <br />
+        </>
+      ))}
+    </ReportLayout>
+
+  );
+});

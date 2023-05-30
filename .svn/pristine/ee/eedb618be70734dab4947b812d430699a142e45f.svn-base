@@ -1,0 +1,1 @@
+export { AllTenantReport } from "./allTenantsReport";
