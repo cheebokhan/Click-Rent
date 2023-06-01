@@ -19,6 +19,7 @@ import { Get_AllTanenets_URL } from "../../../constants/apiUrls";
 import { tenantCategories } from "../../enums";
 import { getTranslation } from "../../../heplers/translationHelper";
 import SplitFundtoTenant from "./splitFundtoTenant";
+import FundtoCategorymapper from "./fundtoCategorymapper";
 
 export const AddFundsToTenantDialog = ({
   counterpartName,
@@ -88,9 +89,50 @@ export const AddFundsToTenantDialog = ({
   });
 
   const defaultValue = editTenFunds ? editTenFunds : initialValues;
+
+ 
+  // const [remainingValue, setRemainingValue] = useState();
+
+  useEffect(() => {
+  //  setTimeout(setRemainingValue(amount),1000);
+  setFieldArray([{
+    duesCategory: 0, amount: amount
+  }])
+  }, [amount]);
   
- 
- 
+  const [fieldArray, setFieldArray] = useState([]);
+  //for data saving 
+
+
+  console.log("sdsdsdsdsdsd",fieldArray);
+
+  // const [fundData, setFundData] = useState([]);
+  // const handleDataChange = (duescategory, fund) => {
+  //   // add the fundData to the fundData fieldArray
+  //   if(fundData.length<tenantCategories.length){
+  //     setFundData([...fundData, { duescategory, fund }]);
+  //   }
+  // };
+
+  // console.log("dadadadadadad",fundData);
+
+  // const handleValueChange = (value) => {
+  //   const parsedValue = parseInt(value);
+  //   if (parsedValue && parsedValue <= remainingValue) {
+  //     const newRemainingValue = remainingValue - parsedValue;
+  //     setRemainingValue(newRemainingValue);
+  //     // add a new object to the fieldArray with a random duescategory and fund
+  //     if(fieldArray.length<tenantCategories.length){
+  //       setFieldArray([
+  //         ...fieldArray,
+  //         { duescategory: "cost", fund: newRemainingValue},
+  //       ]);
+  //     }
+  //   } else {
+  //     // setShowNextAutocomplete(false);
+  //   }
+  // };
+  
   return (
     <Dialog
       open={isOpen}
@@ -168,53 +210,17 @@ export const AddFundsToTenantDialog = ({
                       )}
                     />
                   </Grid>
-                  {/* <Grid item xs={6} sm={6} md={6} lg={6}>
-                    <Autocomplete
-                      options={tenantCategories}
-                      value={getTenantCategory(0)}
-                      getOptionLabel={(option) => option.label}
-                      size="small"
-                      debugger
-                      onChange={(e, tenantCategory) => {
-                        if (tenantCategory) {
-                          debugger
-                          setFieldValue("duesCategory", tenantCategory?.id);
-                        }
-                      }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label={getTranslation(
-                            "Category",
-                            "Cat�gorie",
-                            "Kategorie"
-                          )}
-                          variant="outlined"
-                        />
-                      )}
-                    />
-                  </Grid>
-                  <Grid item xs={6} sm={6} md={6} lg={6}>
-                  <TextField
-                      size="small"
-                      name="amount"
-                      type="number"
-                      label="Enter a value"
-                      variant="outlined"
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                      value={values.amount}
-                      onChange={(e)=>{
-                        handleValueChange(e,e.target.value,1)
-                      }}
-                  />
-                  </Grid> */}
-                  <Grid item xs={12} sm={12} md={12} lg={12}>
-                  <SplitFundtoTenant remainingAmount={amount}/>
-                  </Grid>
+                   <Grid item xs={12} sm={12} md={12} lg={12} >
+                  <FundtoCategorymapper array={fieldArray} 
+                      setArray={setFieldArray}
+                      // handleValueChange={handleValueChange}
+                       tenantCategories={tenantCategories}
+                      // handleDataChange={handleDataChange}
+                      transactionAmount={amount}
+                      />
+                      </Grid>
                 </Grid>
-                
+
               </CardContent>
               <CardActions>
                 <Box
